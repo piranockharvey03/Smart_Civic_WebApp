@@ -1,0 +1,261 @@
+:root {
+    --app-green: #1f7a3d;
+    --app-yellow: #f6c445;
+    --app-red: #c62828;
+    --app-white: #ffffff;
+    --app-ink: #1f2d1f;
+    --app-surface: #fffdf8;
+    --app-border: rgba(31, 122, 61, 0.16);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body.app-shell {
+    background: #f5f6f7;
+    color: var(--app-ink);
+    min-height: 100vh;
+}
+
+.app-topbar {
+    background: var(--app-white);
+    border-bottom: 1px solid var(--app-border);
+}
+
+.app-page {
+    min-height: calc(100vh - 56px);
+}
+
+.app-sidebar {
+    width: 280px;
+    border-right: 1px solid var(--app-border);
+    background: var(--app-white);
+}
+
+.sidebar {
+    color: var(--app-ink);
+}
+
+.sidebar .nav-link {
+    color: var(--app-green);
+    border-radius: 12px;
+    padding: 0.8rem 1rem;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    font-weight: 600;
+}
+
+.sidebar .nav-link:hover,
+.sidebar .nav-link.active {
+    color: var(--app-white);
+    background: var(--app-green);
+}
+
+.app-content {
+    padding: 1.5rem;
+}
+
+.app-card {
+    border: 1px solid var(--app-border);
+    border-radius: 18px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+}
+
+.hero-panel {
+    background: var(--app-white);
+    color: var(--app-ink);
+    border-left: 4px solid var(--app-green);
+}
+
+.metric-card {
+    border-left: 4px solid var(--app-red);
+}
+
+.metric-card.metric-green {
+    border-left-color: var(--app-green);
+}
+
+.metric-card.metric-yellow {
+    border-left-color: var(--app-yellow);
+}
+
+.metric-card.metric-red {
+    border-left-color: var(--app-red);
+}
+
+.status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.775rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.status-chip.green {
+    background: var(--app-green);
+    color: var(--app-white);
+}
+
+.status-chip.yellow {
+    background: var(--app-yellow);
+    color: #6d5200;
+}
+
+.status-chip.red {
+    background: var(--app-red);
+    color: var(--app-white);
+}
+
+.sidebar .nav-link i {
+    color: var(--app-red);
+}
+
+.sidebar .nav-link.active i,
+.sidebar .nav-link:hover i {
+    color: var(--app-yellow);
+}
+
+.auth-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+}
+
+.auth-card {
+    max-width: 1080px;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 16px;
+    border: 1px solid var(--app-border);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
+}
+
+.auth-aside {
+    background: var(--app-white);
+    color: var(--app-white);
+}
+
+/* Government portal styles */
+.portal-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 1rem;
+}
+
+.portal-brand .emblem {
+    width: 48px;
+    height: 48px;
+    background: var(--app-green);
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.portal-brand .title {
+    font-weight: 700;
+    color: var(--app-ink);
+    font-size: 1.05rem;
+}
+
+.auth-card {
+    max-width: 900px;
+    border-radius: 8px;
+}
+
+.auth-aside {
+    background: var(--app-surface);
+    color: var(--app-ink);
+    border-right: 1px solid var(--app-border);
+    padding: 2rem;
+}
+
+.form-control {
+    height: 48px;
+    border-radius: 4px;
+    font-size: 1rem;
+    padding: 0.5rem 0.75rem;
+}
+
+.form-label {
+    font-weight: 600;
+    color: var(--app-ink);
+}
+
+.btn-primary {
+    --bs-btn-color: #fff;
+    --bs-btn-bg: var(--app-green);
+    --bs-btn-border-color: var(--app-green);
+    border-radius: 4px;
+    padding: 0.75rem 1rem;
+    font-weight: 700;
+}
+
+.btn-outline-light {
+    --bs-btn-color: var(--app-green);
+    --bs-btn-border-color: var(--app-green);
+}
+
+.auth-aside .text-muted {
+    color: #6c757d !important;
+}
+
+.auth-aside .text-uppercase,
+.auth-aside .display-6,
+.auth-aside .fw-bold {
+    color: var(--app-ink);
+}
+
+.auth-aside {
+    border-right: 1px solid var(--app-border);
+}
+
+.btn-primary {
+    --bs-btn-color: #fff;
+    --bs-btn-bg: var(--app-green);
+    --bs-btn-border-color: var(--app-green);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #196e36;
+    --bs-btn-hover-border-color: #196e36;
+    --bs-btn-focus-shadow-rgb: 31, 122, 61;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: var(--app-red);
+    --bs-btn-active-border-color: var(--app-red);
+}
+
+.btn-outline-light {
+    --bs-btn-color: var(--app-green);
+    --bs-btn-border-color: var(--app-green);
+    --bs-btn-hover-color: var(--app-white);
+    --bs-btn-hover-bg: var(--app-green);
+    --bs-btn-hover-border-color: var(--app-green);
+}
+
+.btn-light {
+    --bs-btn-color: var(--app-ink);
+    --bs-btn-bg: var(--app-yellow);
+    --bs-btn-border-color: var(--app-yellow);
+    --bs-btn-hover-color: var(--app-ink);
+    --bs-btn-hover-bg: #efbb2f;
+    --bs-btn-hover-border-color: #efbb2f;
+}
+
+.badge.text-bg-light {
+    background-color: var(--app-yellow) !important;
+    color: var(--app-red) !important;
+}
+
+@media (max-width: 991.98px) {
+    .app-sidebar {
+        width: 100%;
+        max-width: 300px;
+    }
+
+    .app-content {
+        padding: 1rem;
+    }
+}
