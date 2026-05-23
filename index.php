@@ -27,7 +27,7 @@ require_once __DIR__ . '/includes/header.php';
             <div class="p-5 rounded-4 hero-panel app-card">
                 <p class="text-uppercase small mb-2 text-muted">Kampala Capital City Authority</p>
                 <h1 class="display-5 fw-bold mb-3">Smart Civic App</h1>
-                <p class="lead mb-4">A citizen services reporting and tracking platform for public service issues in Kampala.</p>
+                <p class="lead mb-4">A citizen services reporting and tracking platform for public service issues in Kampala, now with the phase two issue reporting core.</p>
                 <div class="d-flex gap-3 flex-wrap">
                     <a class="btn btn-light btn-lg" href="<?= e(app_url('auth/login.php')) ?>">Staff/Admin Login</a>
                     <a class="btn btn-outline-light btn-lg" href="<?= e(app_url('auth/citizen-login.php')) ?>">Citizen Login</a>
@@ -37,13 +37,13 @@ require_once __DIR__ . '/includes/header.php';
         </div>
         <div class="col-lg-5">
             <div class="app-card bg-white p-4">
-                <h2 class="h4 mb-3">Phase One Scope</h2>
+                <h2 class="h4 mb-3">Phase Two Core</h2>
                 <ul class="mb-0 text-muted">
-                    <li>Project setup and structure</li>
-                    <li>MySQL database design</li>
-                    <li>Authentication and session handling</li>
-                    <li>Role-based access control</li>
-                    <li>Basic dashboards for each role</li>
+                    <li>Issue submission with secure image uploads</li>
+                    <li>Unique KCCA ticket numbers</li>
+                    <li>Citizen issue history and issue detail views</li>
+                    <li>Staff and admin issue management with filters</li>
+                    <li>Status, assignment, and comments workflow</li>
                 </ul>
             </div>
         </div>

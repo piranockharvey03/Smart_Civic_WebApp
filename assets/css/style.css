@@ -16,6 +16,7 @@ body.app-shell {
     background: #f5f6f7;
     color: var(--app-ink);
     min-height: 100vh;
+    background-image: radial-gradient(circle at top left, rgba(31, 122, 61, 0.08), transparent 34%), radial-gradient(circle at top right, rgba(198, 40, 40, 0.06), transparent 32%);
 }
 
 .app-topbar {
@@ -107,6 +108,73 @@ body.app-shell {
 .status-chip.red {
     background: var(--app-red);
     color: var(--app-white);
+}
+
+.issue-badge {
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.issue-badge.secondary {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.issue-badge.warning {
+    background: #fff3cd;
+    color: #7a5a00;
+}
+
+.issue-badge.info {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.issue-badge.primary {
+    background: #d9e7ff;
+    color: #0d47a1;
+}
+
+.issue-badge.success {
+    background: #d1e7dd;
+    color: #0f5132;
+}
+
+.issue-badge.dark {
+    background: #dee2e6;
+    color: #212529;
+}
+
+.table thead th {
+    background: #f8faf8;
+    color: var(--app-ink);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(31, 122, 61, 0.04);
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.issue-panel {
+    background: linear-gradient(135deg, rgba(31, 122, 61, 0.08), rgba(246, 196, 69, 0.08));
+    border: 1px solid rgba(31, 122, 61, 0.12);
+}
+
+.upload-note {
+    font-size: 0.875rem;
+    color: #6c757d;
 }
 
 .sidebar .nav-link i {

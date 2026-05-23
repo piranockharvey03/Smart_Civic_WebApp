@@ -85,7 +85,7 @@ UPDATE CURRENT_TIMESTAMP,
     KEY idx_citizen_profiles_division
 (division),
     CONSTRAINT fk_citizen_profiles_users
-        FOREIGN KEY
+FOREIGN KEY
 (user_id) REFERENCES users
 (id)
         ON
@@ -193,3 +193,159 @@ WHERE NOT EXISTS (
 FROM auth_audit_logs
 WHERE action = 'schema_initialized'
 );
+
+CREATE TABLE
+IF NOT EXISTS issue_categories
+(
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR
+(120) NOT NULL,
+    slug VARCHAR
+(140) NOT NULL UNIQUE,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_issue_categories_name
+(name),
+    KEY idx_issue_categories_sort_order
+(sort_order)
+) ENGINE=InnoDB;
+
+INSERT INTO issue_categories
+    (name, slug, sort_order)
+VALUES
+    ('Roads', 'roads', 1),
+    ('Garbage', 'garbage', 2),
+    ('Drainage', 'drainage', 3),
+    ('Water', 'water', 4),
+    ('Streetlights', 'streetlights', 5),
+    ('Security', 'security', 6),
+    ('Other', 'other', 7)
+ON DUPLICATE KEY
+UPDATE
+    slug = VALUES
+(slug),
+    sort_order = VALUES
+(sort_order);
+
+CREATE TABLE
+IF NOT EXISTS issue_status
+(
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    status_key VARCHAR
+(40) NOT NULL,
+    label VARCHAR
+(80) NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_issue_status_key
+(status_key),
+    UNIQUE KEY uq_issue_status_label
+(label),
+    KEY idx_issue_status_sort_order
+(sort_order)
+) ENGINE=InnoDB;
+
+INSERT INTO issue_status
+    (status_key, label, sort_order)
+VALUES
+    ('submitted', 'Submitted', 1),
+    ('under_review', 'Under Review', 2),
+    ('assigned', 'Assigned', 3),
+    ('in_progress', 'In Progress', 4),
+    ('resolved', 'Resolved', 5),
+    ('closed', 'Closed', 6)
+ON DUPLICATE KEY
+UPDATE
+    label = VALUES
+(label),
+    sort_order = VALUES
+(sort_order);
+
+CREATE TABLE
+IF NOT EXISTS issues
+(
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ticket_number VARCHAR
+(30) NOT NULL,
+    user_id BIGINT UNSIGNED NOT NULL,
+    category_id INT UNSIGNED NOT NULL,
+    title VARCHAR
+(180) NOT NULL,
+    description TEXT NOT NULL,
+    image VARCHAR
+(255) NOT NULL,
+    location VARCHAR
+(255) NOT NULL,
+    status VARCHAR
+(40) NOT NULL DEFAULT 'submitted',
+    assigned_to BIGINT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON
+UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_issues_ticket_number (ticket_number),
+    KEY idx_issues_user_id
+(user_id),
+    KEY idx_issues_category_id
+(category_id),
+    KEY idx_issues_status
+(status),
+    KEY idx_issues_location
+(location),
+    KEY idx_issues_assigned_to
+(assigned_to),
+    CONSTRAINT fk_issues_users
+        FOREIGN KEY
+(user_id) REFERENCES users
+(id)
+        ON
+UPDATE CASCADE
+        ON
+DELETE CASCADE,
+    CONSTRAINT fk_issues_categories
+        FOREIGN KEY
+(category_id) REFERENCES issue_categories
+(id)
+        ON
+UPDATE CASCADE
+        ON
+DELETE RESTRICT,
+    CONSTRAINT fk_issues_assigned_to
+        FOREIGN KEY
+(assigned_to) REFERENCES users
+(id)
+        ON
+UPDATE CASCADE
+        ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE
+IF NOT EXISTS issue_comments
+(
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    issue_id BIGINT UNSIGNED NOT NULL,
+    user_id BIGINT UNSIGNED NOT NULL,
+    comment TEXT NOT NULL,
+    is_public TINYINT
+(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_issue_comments_issue_id
+(issue_id),
+    KEY idx_issue_comments_user_id
+(user_id),
+    CONSTRAINT fk_issue_comments_issues
+        FOREIGN KEY
+(issue_id) REFERENCES issues
+(id)
+        ON
+UPDATE CASCADE
+        ON
+DELETE CASCADE,
+    CONSTRAINT fk_issue_comments_users
+        FOREIGN KEY
+(user_id) REFERENCES users
+(id)
+        ON
+UPDATE CASCADE
+        ON
+DELETE CASCADE
+) ENGINE=InnoDB;
