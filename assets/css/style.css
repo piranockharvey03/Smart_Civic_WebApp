@@ -30,7 +30,7 @@ body.app-shell {
 
 .app-sidebar {
     width: 280px;
-    border-right: 1px solid var(--app-border);
+    border-right: px solid var(--app-border);
     background: var(--app-white);
 }
 
@@ -41,7 +41,7 @@ body.app-shell {
 .sidebar .nav-link {
     color: var(--app-green);
     border-radius: 12px;
-    padding: 0.8rem 1rem;
+    padding: 0.8rem 1.25rem;
     transition: background-color 0.15s ease, color 0.15s ease;
     font-weight: 600;
 }

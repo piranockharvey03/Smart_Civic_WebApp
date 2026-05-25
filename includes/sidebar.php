@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 $role = current_user_role();
+$activePage = $activePage ?? '';
 $dashboardLink = match ($role) {
     'admin' => app_url('admin/dashboard.php'),
     'staff' => app_url('staff/dashboard.php'),
@@ -34,20 +35,20 @@ $issueQueueLink = match ($role) {
             </div>
             <nav class="nav flex-column px-3 py-4 gap-2">
                 <a class="nav-link <?= ($activePage === 'dashboard') ? 'active' : '' ?>" href="<?= e($dashboardLink) ?>">
-                    <i class="bi bi-speedometer2 me-2"></i>Dashboard
+                    Dashboard
                 </a>
                 <?php if ($role === 'citizen') : ?>
-                    <a class="nav-link <?= ($activePage === 'citizen-issues') ? 'active' : '' ?>" href="<?= e($issueListLink) ?>"><i class="bi bi-chat-square-text me-2"></i>My Reports</a>
-                    <a class="nav-link <?= ($activePage === 'citizen-report') ? 'active' : '' ?>" href="<?= e($issueQueueLink) ?>"><i class="bi bi-plus-circle me-2"></i>Submit Report</a>
+                    <a class="nav-link <?= ($activePage === 'citizen-issues') ? 'active' : '' ?>" href="<?= e($issueListLink) ?>">My Reports</a>
+                    <a class="nav-link <?= ($activePage === 'citizen-report') ? 'active' : '' ?>" href="<?= e($issueQueueLink) ?>">Submit Report</a>
                 <?php elseif ($role === 'staff') : ?>
-                    <a class="nav-link <?= ($activePage === 'staff-issues') ? 'active' : '' ?>" href="<?= e($issueListLink) ?>"><i class="bi bi-inbox me-2"></i>Issue Management</a>
-                    <a class="nav-link" href="<?= e($issueQueueLink) ?>"><i class="bi bi-arrow-repeat me-2"></i>Submitted Queue</a>
+                    <a class="nav-link <?= ($activePage === 'staff-issues') ? 'active' : '' ?>" href="<?= e($issueListLink) ?>">Issue Management</a>
+                    <a class="nav-link" href="<?= e($issueQueueLink) ?>">Submitted Queue</a>
                 <?php elseif ($role === 'admin') : ?>
-                    <a class="nav-link <?= ($activePage === 'admin-issues') ? 'active' : '' ?>" href="<?= e($issueListLink) ?>"><i class="bi bi-inbox me-2"></i>Issue Management</a>
-                    <a class="nav-link" href="<?= e($issueQueueLink) ?>"><i class="bi bi-arrow-repeat me-2"></i>Submitted Queue</a>
+                    <a class="nav-link <?= ($activePage === 'admin-issues') ? 'active' : '' ?>" href="<?= e($issueListLink) ?>">Issue Management</a>
+                    <a class="nav-link" href="<?= e($issueQueueLink) ?>">Submitted Queue</a>
                 <?php endif; ?>
                 <a class="nav-link text-danger" href="<?= e(app_url('auth/logout.php')) ?>">
-                    <i class="bi bi-box-arrow-right me-2"></i>Logout
+                    Logout
                 </a>
             </nav>
         </aside>
