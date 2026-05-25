@@ -252,8 +252,10 @@ VALUES
     ('under_review', 'Under Review', 2),
     ('assigned', 'Assigned', 3),
     ('in_progress', 'In Progress', 4),
-    ('resolved', 'Resolved', 5),
-    ('closed', 'Closed', 6)
+    ('pending', 'Pending', 5),
+    ('resolved', 'Resolved', 6),
+    ('closed', 'Closed', 7),
+    ('reopened', 'Reopened', 8)
 ON DUPLICATE KEY
 UPDATE
     label = VALUES
@@ -278,7 +280,12 @@ IF NOT EXISTS issues
 (255) NOT NULL,
     status VARCHAR
 (40) NOT NULL DEFAULT 'submitted',
+    priority VARCHAR
+(20) NOT NULL DEFAULT 'medium',
     assigned_to BIGINT UNSIGNED NULL,
+    resolution_notes TEXT NULL,
+    resolved_at TIMESTAMP NULL,
+    reopened_at TIMESTAMP NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON
 UPDATE CURRENT_TIMESTAMP,
@@ -289,6 +296,8 @@ UPDATE CURRENT_TIMESTAMP,
 (category_id),
     KEY idx_issues_status
 (status),
+    KEY idx_issues_priority
+(priority),
     KEY idx_issues_location
 (location),
     KEY idx_issues_assigned_to
@@ -341,6 +350,66 @@ UPDATE CASCADE
         ON
 DELETE CASCADE,
     CONSTRAINT fk_issue_comments_users
+        FOREIGN KEY
+(user_id) REFERENCES users
+(id)
+        ON
+UPDATE CASCADE
+        ON
+DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE
+IF NOT EXISTS issue_logs
+(
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    issue_id BIGINT UNSIGNED NOT NULL,
+    user_id BIGINT UNSIGNED NOT NULL,
+    action VARCHAR
+(60) NOT NULL,
+    description TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_issue_logs_issue_id
+(issue_id),
+    KEY idx_issue_logs_user_id
+(user_id),
+    KEY idx_issue_logs_action
+(action),
+    CONSTRAINT fk_issue_logs_issues
+        FOREIGN KEY
+(issue_id) REFERENCES issues
+(id)
+        ON
+UPDATE CASCADE
+        ON
+DELETE CASCADE,
+    CONSTRAINT fk_issue_logs_users
+        FOREIGN KEY
+(user_id) REFERENCES users
+(id)
+        ON
+UPDATE CASCADE
+        ON
+DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE
+IF NOT EXISTS notifications
+(
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    message VARCHAR
+(255) NOT NULL,
+    is_read TINYINT
+(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_notifications_user_id
+(user_id),
+    KEY idx_notifications_is_read
+(is_read),
+    KEY idx_notifications_created_at
+(created_at),
+    CONSTRAINT fk_notifications_users
         FOREIGN KEY
 (user_id) REFERENCES users
 (id)

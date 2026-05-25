@@ -9,8 +9,10 @@ function issue_status_catalog(): array
         'under_review' => 'Under Review',
         'assigned' => 'Assigned',
         'in_progress' => 'In Progress',
+        'pending' => 'Pending',
         'resolved' => 'Resolved',
         'closed' => 'Closed',
+        'reopened' => 'Reopened',
     ];
 }
 
@@ -28,10 +30,122 @@ function issue_status_badge_class(string $status): string
         'under_review' => 'warning',
         'assigned' => 'info',
         'in_progress' => 'primary',
+        'pending' => 'warning',
         'resolved' => 'success',
         'closed' => 'dark',
+        'reopened' => 'warning',
         default => 'secondary',
     };
+}
+
+function issue_priority_catalog(): array
+{
+    return [
+        'low' => 'Low',
+        'medium' => 'Medium',
+        'high' => 'High',
+        'critical' => 'Critical',
+    ];
+}
+
+function issue_priority_label(string $priority): string
+{
+    $catalog = issue_priority_catalog();
+
+    return $catalog[$priority] ?? ucwords(str_replace('_', ' ', $priority));
+}
+
+function issue_priority_badge_class(string $priority): string
+{
+    return match ($priority) {
+        'low' => 'success',
+        'medium' => 'secondary',
+        'high' => 'warning',
+        'critical' => 'danger',
+        default => 'secondary',
+    };
+}
+
+function issue_issue_column_exists(string $column): bool
+{
+    static $cache = [];
+
+    if (array_key_exists($column, $cache)) {
+        return $cache[$column];
+    }
+
+    try {
+        $stmt = db()->prepare(
+            'SELECT COUNT(*) AS total
+             FROM information_schema.columns
+             WHERE table_schema = DATABASE()
+               AND table_name = :table_name
+               AND column_name = :column_name'
+        );
+        $stmt->execute([
+            'table_name' => 'issues',
+            'column_name' => $column,
+        ]);
+        $cache[$column] = ((int) ($stmt->fetch()['total'] ?? 0)) > 0;
+    } catch (Throwable) {
+        $cache[$column] = false;
+    }
+
+    return $cache[$column];
+}
+
+function issue_table_exists(string $table): bool
+{
+    static $cache = [];
+
+    if (array_key_exists($table, $cache)) {
+        return $cache[$table];
+    }
+
+    try {
+        $stmt = db()->prepare(
+            'SELECT COUNT(*) AS total
+             FROM information_schema.tables
+             WHERE table_schema = DATABASE()
+               AND table_name = :table_name'
+        );
+        $stmt->execute(['table_name' => $table]);
+        $cache[$table] = ((int) ($stmt->fetch()['total'] ?? 0)) > 0;
+    } catch (Throwable) {
+        $cache[$table] = false;
+    }
+
+    return $cache[$table];
+}
+
+function issue_log_action_label(string $action): string
+{
+    return match ($action) {
+        'issue_submitted' => 'Issue submitted',
+        'status_updated' => 'Status updated',
+        'priority_updated' => 'Priority updated',
+        'issue_assigned' => 'Issue assigned',
+        'issue_reassigned' => 'Issue reassigned',
+        'comment_added' => 'Comment added',
+        'issue_resolved' => 'Issue resolved',
+        'issue_reopened' => 'Issue reopened',
+        default => ucwords(str_replace('_', ' ', $action)),
+    };
+}
+
+function issue_workflow_statuses(): array
+{
+    return ['submitted', 'under_review', 'assigned', 'in_progress', 'pending', 'resolved', 'closed', 'reopened'];
+}
+
+function issue_open_statuses(): array
+{
+    return ['submitted', 'under_review', 'assigned', 'in_progress', 'pending', 'reopened'];
+}
+
+function issue_resolved_statuses(): array
+{
+    return ['resolved', 'closed'];
 }
 
 function issue_category_seed(): array
@@ -249,15 +363,15 @@ function issue_create_report(int $userId, array $data, array $file, array &$erro
 
     $now = new DateTimeImmutable('now');
     $temporaryTicket = 'TMP-' . bin2hex(random_bytes(8));
+    $initialPriority = 'medium';
+    $hasPriorityColumn = issue_issue_column_exists('priority');
 
     db()->beginTransaction();
 
     try {
-        $stmt = db()->prepare(
-            'INSERT INTO issues (ticket_number, user_id, category_id, title, description, image, location, status, assigned_to)
-             VALUES (:ticket_number, :user_id, :category_id, :title, :description, :image, :location, :status, NULL)'
-        );
-        $stmt->execute([
+        $columns = ['ticket_number', 'user_id', 'category_id', 'title', 'description', 'image', 'location', 'status', 'assigned_to'];
+        $placeholders = [':ticket_number', ':user_id', ':category_id', ':title', ':description', ':image', ':location', ':status', 'NULL'];
+        $params = [
             'ticket_number' => $temporaryTicket,
             'user_id' => $userId,
             'category_id' => $categoryId,
@@ -266,7 +380,19 @@ function issue_create_report(int $userId, array $data, array $file, array &$erro
             'image' => $imageName,
             'location' => $locationText,
             'status' => 'submitted',
-        ]);
+        ];
+
+        if ($hasPriorityColumn) {
+            $columns[] = 'priority';
+            $placeholders[] = ':priority';
+            $params['priority'] = $initialPriority;
+        }
+
+        $stmt = db()->prepare(
+            'INSERT INTO issues (' . implode(', ', $columns) . ')
+             VALUES (' . implode(', ', $placeholders) . ')'
+        );
+        $stmt->execute($params);
 
         $issueId = (int) db()->lastInsertId();
         $ticketNumber = issue_build_ticket_number($issueId, $now);
@@ -276,6 +402,8 @@ function issue_create_report(int $userId, array $data, array $file, array &$erro
             'ticket_number' => $ticketNumber,
             'id' => $issueId,
         ]);
+
+        issue_record_issue_log($issueId, $userId, 'issue_submitted', 'Issue submitted by citizen.');
 
         db()->commit();
 
@@ -319,7 +447,7 @@ function issue_fetch_status_counts(?int $userId = null): array
     $counts['total'] = (int) ($totalStmt->fetch()['total'] ?? 0);
 
     $openStmt = db()->prepare(
-        'SELECT COUNT(*) AS total FROM issues' . $baseWhere . ($baseWhere ? ' AND ' : ' WHERE ') . "status IN ('submitted', 'under_review', 'assigned', 'in_progress')"
+        'SELECT COUNT(*) AS total FROM issues' . $baseWhere . ($baseWhere ? ' AND ' : ' WHERE ') . "status IN ('submitted', 'under_review', 'assigned', 'in_progress', 'pending', 'reopened')"
     );
     $openStmt->execute($params);
     $counts['open'] = (int) ($openStmt->fetch()['total'] ?? 0);
@@ -331,7 +459,7 @@ function issue_fetch_status_counts(?int $userId = null): array
     $counts['resolved'] = (int) ($resolvedStmt->fetch()['total'] ?? 0);
 
     $pendingStmt = db()->prepare(
-        'SELECT COUNT(*) AS total FROM issues' . $baseWhere . ($baseWhere ? ' AND ' : ' WHERE ') . "status IN ('submitted', 'under_review')"
+        'SELECT COUNT(*) AS total FROM issues' . $baseWhere . ($baseWhere ? ' AND ' : ' WHERE ') . "status IN ('submitted', 'under_review', 'pending')"
     );
     $pendingStmt->execute($params);
     $counts['pending'] = (int) ($pendingStmt->fetch()['total'] ?? 0);
@@ -354,10 +482,44 @@ function issue_fetch_citizen_issues(int $userId): array
     return $stmt->fetchAll();
 }
 
+function issue_fetch_citizen_issue_page(int $userId, int $page = 1, int $perPage = 10): array
+{
+    $page = max(1, $page);
+    $perPage = max(1, min(100, $perPage));
+    $offset = ($page - 1) * $perPage;
+
+    $countStmt = db()->prepare('SELECT COUNT(*) AS total FROM issues WHERE user_id = :user_id');
+    $countStmt->execute(['user_id' => $userId]);
+    $total = (int) ($countStmt->fetch()['total'] ?? 0);
+
+    $stmt = db()->prepare(
+        'SELECT i.*, c.name AS category_name, c.slug AS category_slug, u.full_name AS assigned_name
+         FROM issues i
+         INNER JOIN issue_categories c ON c.id = i.category_id
+         LEFT JOIN users u ON u.id = i.assigned_to
+         WHERE i.user_id = :user_id
+         ORDER BY i.created_at DESC, i.id DESC
+         LIMIT :limit OFFSET :offset'
+    );
+    $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+    $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
+
+    return [
+        'items' => $stmt->fetchAll(),
+        'total' => $total,
+        'page' => $page,
+        'per_page' => $perPage,
+        'pages' => max(1, (int) ceil($total / $perPage)),
+    ];
+}
+
 function issue_fetch_management_issues(array $filters = []): array
 {
     $conditions = [];
     $params = [];
+    $hasPriorityColumn = issue_issue_column_exists('priority');
 
     if (!empty($filters['ticket_number'])) {
         $conditions[] = 'i.ticket_number LIKE :ticket_number';
@@ -369,9 +531,29 @@ function issue_fetch_management_issues(array $filters = []): array
         $params['status'] = trim((string) $filters['status']);
     }
 
+    if ($hasPriorityColumn && !empty($filters['priority'])) {
+        $conditions[] = 'i.priority = :priority';
+        $params['priority'] = trim((string) $filters['priority']);
+    }
+
     if (!empty($filters['category_id'])) {
         $conditions[] = 'i.category_id = :category_id';
         $params['category_id'] = (int) $filters['category_id'];
+    }
+
+    if (!empty($filters['assigned_to'])) {
+        $conditions[] = 'i.assigned_to = :assigned_to';
+        $params['assigned_to'] = (int) $filters['assigned_to'];
+    }
+
+    if (!empty($filters['date_from'])) {
+        $conditions[] = 'DATE(i.created_at) >= :date_from';
+        $params['date_from'] = trim((string) $filters['date_from']);
+    }
+
+    if (!empty($filters['date_to'])) {
+        $conditions[] = 'DATE(i.created_at) <= :date_to';
+        $params['date_to'] = trim((string) $filters['date_to']);
     }
 
     if (!empty($filters['location'])) {
@@ -383,7 +565,8 @@ function issue_fetch_management_issues(array $filters = []): array
         'SELECT i.*, c.name AS category_name, c.slug AS category_slug,
             reporter.full_name AS reporter_name,
             reporter.email AS reporter_email,
-            assignee.full_name AS assigned_name
+            assignee.full_name AS assigned_name,
+            assignee.email AS assigned_email
          FROM issues i
          INNER JOIN issue_categories c ON c.id = i.category_id
          INNER JOIN users reporter ON reporter.id = i.user_id
@@ -399,6 +582,102 @@ function issue_fetch_management_issues(array $filters = []): array
     $stmt->execute($params);
 
     return $stmt->fetchAll();
+}
+
+function issue_fetch_management_issue_page(array $filters = [], int $page = 1, int $perPage = 10): array
+{
+    $page = max(1, $page);
+    $perPage = max(1, min(100, $perPage));
+
+    $conditions = [];
+    $params = [];
+    $hasPriorityColumn = issue_issue_column_exists('priority');
+
+    if (!empty($filters['ticket_number'])) {
+        $conditions[] = 'i.ticket_number LIKE :ticket_number';
+        $params['ticket_number'] = '%' . trim((string) $filters['ticket_number']) . '%';
+    }
+
+    if (!empty($filters['status'])) {
+        $conditions[] = 'i.status = :status';
+        $params['status'] = trim((string) $filters['status']);
+    }
+
+    if ($hasPriorityColumn && !empty($filters['priority'])) {
+        $conditions[] = 'i.priority = :priority';
+        $params['priority'] = trim((string) $filters['priority']);
+    }
+
+    if (!empty($filters['category_id'])) {
+        $conditions[] = 'i.category_id = :category_id';
+        $params['category_id'] = (int) $filters['category_id'];
+    }
+
+    if (!empty($filters['assigned_to'])) {
+        $conditions[] = 'i.assigned_to = :assigned_to';
+        $params['assigned_to'] = (int) $filters['assigned_to'];
+    }
+
+    if (!empty($filters['date_from'])) {
+        $conditions[] = 'DATE(i.created_at) >= :date_from';
+        $params['date_from'] = trim((string) $filters['date_from']);
+    }
+
+    if (!empty($filters['date_to'])) {
+        $conditions[] = 'DATE(i.created_at) <= :date_to';
+        $params['date_to'] = trim((string) $filters['date_to']);
+    }
+
+    if (!empty($filters['location'])) {
+        $conditions[] = 'i.location LIKE :location';
+        $params['location'] = '%' . trim((string) $filters['location']) . '%';
+    }
+
+    $whereSql = $conditions ? ' WHERE ' . implode(' AND ', $conditions) : '';
+
+    $countStmt = db()->prepare(
+        'SELECT COUNT(*) AS total
+         FROM issues i
+         INNER JOIN issue_categories c ON c.id = i.category_id
+         INNER JOIN users reporter ON reporter.id = i.user_id
+         LEFT JOIN users assignee ON assignee.id = i.assigned_to' . $whereSql
+    );
+    $countStmt->execute($params);
+    $total = (int) ($countStmt->fetch()['total'] ?? 0);
+
+    $offset = ($page - 1) * $perPage;
+
+    $sql =
+        'SELECT i.*, c.name AS category_name, c.slug AS category_slug,
+            reporter.full_name AS reporter_name,
+            reporter.email AS reporter_email,
+            assignee.full_name AS assigned_name,
+            assignee.email AS assigned_email
+         FROM issues i
+         INNER JOIN issue_categories c ON c.id = i.category_id
+         INNER JOIN users reporter ON reporter.id = i.user_id
+         LEFT JOIN users assignee ON assignee.id = i.assigned_to' .
+        $whereSql .
+        ' ORDER BY i.updated_at DESC, i.created_at DESC, i.id DESC
+         LIMIT :limit OFFSET :offset';
+
+    $stmt = db()->prepare($sql);
+    foreach ($params as $key => $value) {
+        $stmt->bindValue(':' . $key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+    }
+    $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
+
+    $items = $stmt->fetchAll();
+
+    return [
+        'items' => $items,
+        'total' => $total,
+        'page' => $page,
+        'per_page' => $perPage,
+        'pages' => max(1, (int) ceil($total / $perPage)),
+    ];
 }
 
 function issue_fetch_issue_by_id(int $issueId): ?array
@@ -475,43 +754,317 @@ function issue_fetch_staff_members(): array
     return $stmt->fetchAll();
 }
 
-function issue_update_workflow(int $issueId, string $status, ?int $assignedTo, int $actorId, ?string $comment = null): void
+function issue_record_issue_log(int $issueId, int $userId, string $action, string $description): void
 {
-    db()->beginTransaction();
-
-    try {
-        $update = db()->prepare(
-            'UPDATE issues
-             SET status = :status, assigned_to = :assigned_to
-             WHERE id = :id'
-        );
-        $update->execute([
-            'status' => $status,
-            'assigned_to' => $assignedTo,
-            'id' => $issueId,
-        ]);
-
-        if ($comment !== null && trim($comment) !== '') {
-            $insertComment = db()->prepare(
-                'INSERT INTO issue_comments (issue_id, user_id, comment, is_public)
-                 VALUES (:issue_id, :user_id, :comment, 1)'
-            );
-            $insertComment->execute([
-                'issue_id' => $issueId,
-                'user_id' => $actorId,
-                'comment' => trim($comment),
-            ]);
-        }
-
-        db()->commit();
-    } catch (Throwable $throwable) {
-        db()->rollBack();
-
-        throw $throwable;
+    if (!issue_table_exists('issue_logs')) {
+        return;
     }
+
+    $stmt = db()->prepare(
+        'INSERT INTO issue_logs (issue_id, user_id, action, description)
+         VALUES (:issue_id, :user_id, :action, :description)'
+    );
+    $stmt->execute([
+        'issue_id' => $issueId,
+        'user_id' => $userId,
+        'action' => $action,
+        'description' => trim($description),
+    ]);
 }
 
-function issue_add_comment(int $issueId, int $userId, string $comment, bool $isPublic = true): void
+function issue_create_notification(int $userId, string $message): void
+{
+    if (!issue_table_exists('notifications')) {
+        return;
+    }
+
+    $stmt = db()->prepare(
+        'INSERT INTO notifications (user_id, message, is_read)
+         VALUES (:user_id, :message, 0)'
+    );
+    $stmt->execute([
+        'user_id' => $userId,
+        'message' => trim($message),
+    ]);
+}
+
+function issue_fetch_issue_timeline(int $issueId, int $page = 1, int $perPage = 10): array
+{
+    $page = max(1, $page);
+    $perPage = max(1, min(100, $perPage));
+    $offset = ($page - 1) * $perPage;
+    $issueParamOne = $issueId;
+    $issueParamTwo = $issueId;
+    $hasLogsTable = issue_table_exists('issue_logs');
+
+    if ($hasLogsTable) {
+        $countStmt = db()->prepare(
+            'SELECT COUNT(*) AS total FROM (
+                SELECT id, created_at FROM issue_comments WHERE issue_id = :issue_id_one
+                UNION ALL
+                SELECT id, created_at FROM issue_logs WHERE issue_id = :issue_id_two
+             ) AS timeline_entries'
+        );
+        $countStmt->execute([
+            'issue_id_one' => $issueParamOne,
+            'issue_id_two' => $issueParamTwo,
+        ]);
+    } else {
+        $countStmt = db()->prepare('SELECT COUNT(*) AS total FROM issue_comments WHERE issue_id = :issue_id_one');
+        $countStmt->execute(['issue_id_one' => $issueParamOne]);
+    }
+    $total = (int) ($countStmt->fetch()['total'] ?? 0);
+
+    if ($hasLogsTable) {
+        $sql = "SELECT * FROM (
+            SELECT
+                ic.id AS entry_id,
+                ic.issue_id,
+                ic.user_id,
+                ic.comment AS message,
+                ic.created_at,
+                ic.is_public,
+                'comment' AS entry_type,
+                u.full_name AS author_name,
+                r.name AS author_role,
+                NULL AS action,
+                NULL AS description
+            FROM issue_comments ic
+            INNER JOIN users u ON u.id = ic.user_id
+            INNER JOIN roles r ON r.id = u.role_id
+            WHERE ic.issue_id = :issue_id_one
+            UNION ALL
+            SELECT
+                il.id AS entry_id,
+                il.issue_id,
+                il.user_id,
+                il.description AS message,
+                il.created_at,
+                1 AS is_public,
+                'log' AS entry_type,
+                u.full_name AS author_name,
+                r.name AS author_role,
+                il.action,
+                il.description
+            FROM issue_logs il
+            INNER JOIN users u ON u.id = il.user_id
+            INNER JOIN roles r ON r.id = u.role_id
+                WHERE il.issue_id = :issue_id_two
+         ) AS timeline
+         ORDER BY created_at DESC, entry_id DESC
+         LIMIT :limit OFFSET :offset";
+
+        $stmt = db()->prepare($sql);
+        $stmt->bindValue(':issue_id_one', $issueId, PDO::PARAM_INT);
+        $stmt->bindValue(':issue_id_two', $issueId, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+    } else {
+        $sql = "SELECT
+                ic.id AS entry_id,
+                ic.issue_id,
+                ic.user_id,
+                ic.comment AS message,
+                ic.created_at,
+                ic.is_public,
+                'comment' AS entry_type,
+                u.full_name AS author_name,
+                r.name AS author_role,
+                NULL AS action,
+                NULL AS description
+            FROM issue_comments ic
+            INNER JOIN users u ON u.id = ic.user_id
+            INNER JOIN roles r ON r.id = u.role_id
+            WHERE ic.issue_id = :issue_id_one
+            ORDER BY ic.created_at DESC, ic.id DESC
+            LIMIT :limit OFFSET :offset";
+
+        $stmt = db()->prepare($sql);
+        $stmt->bindValue(':issue_id_one', $issueId, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+    }
+
+    return [
+        'items' => $stmt->fetchAll(),
+        'total' => $total,
+        'page' => $page,
+        'per_page' => $perPage,
+        'pages' => max(1, (int) ceil($total / $perPage)),
+    ];
+}
+
+function issue_fetch_recent_activity(?int $userId = null, int $limit = 5): array
+{
+    $limit = max(1, min(20, $limit));
+    $params = ['limit' => $limit];
+    $userFilterLogs = '';
+    $userFilterComments = '';
+    $prioritySelect = issue_issue_column_exists('priority') ? 'i.priority' : 'NULL AS priority';
+    $hasLogsTable = issue_table_exists('issue_logs');
+
+    if ($userId !== null) {
+        $userFilterLogs = ' WHERE i.user_id = :user_id_logs_one OR i.assigned_to = :user_id_logs_two';
+        $userFilterComments = ' WHERE i.user_id = :user_id_comments_one OR i.assigned_to = :user_id_comments_two';
+        $params['user_id_logs_one'] = $userId;
+        $params['user_id_logs_two'] = $userId;
+        $params['user_id_comments_one'] = $userId;
+        $params['user_id_comments_two'] = $userId;
+    }
+
+    if ($hasLogsTable) {
+        $stmt = db()->prepare(
+            "SELECT t.* FROM (
+                 SELECT il.id AS entry_id, il.issue_id, il.user_id, il.action, il.description, il.created_at,
+                     i.ticket_number, i.title, i.status, $prioritySelect,
+                   u.full_name AS actor_name, r.name AS actor_role
+            FROM issue_logs il
+            INNER JOIN issues i ON i.id = il.issue_id
+            INNER JOIN users u ON u.id = il.user_id
+                 INNER JOIN roles r ON r.id = u.role_id" . $userFilterLogs . "
+            UNION ALL
+                 SELECT ic.id AS entry_id, ic.issue_id, ic.user_id, 'comment_added' AS action, ic.comment AS description, ic.created_at,
+                     i.ticket_number, i.title, i.status, $prioritySelect,
+                   u.full_name AS actor_name, r.name AS actor_role
+            FROM issue_comments ic
+            INNER JOIN issues i ON i.id = ic.issue_id
+            INNER JOIN users u ON u.id = ic.user_id
+                 INNER JOIN roles r ON r.id = u.role_id" . $userFilterComments . "
+        ) AS t
+        ORDER BY t.created_at DESC, t.entry_id DESC
+        LIMIT :limit"
+        );
+        foreach ($params as $key => $value) {
+            $stmt->bindValue(':' . $key, $value, PDO::PARAM_INT);
+        }
+        $stmt->execute();
+    } else {
+        $stmt = db()->prepare(
+            "SELECT ic.id AS entry_id, ic.issue_id, ic.user_id, 'comment_added' AS action, ic.comment AS description, ic.created_at,
+                   i.ticket_number, i.title, i.status, $prioritySelect,
+                   u.full_name AS actor_name, r.name AS actor_role
+             FROM issue_comments ic
+             INNER JOIN issues i ON i.id = ic.issue_id
+             INNER JOIN users u ON u.id = ic.user_id
+             INNER JOIN roles r ON r.id = u.role_id" . $userFilterComments . "
+             ORDER BY ic.created_at DESC, ic.id DESC
+             LIMIT :limit"
+        );
+        foreach ($params as $key => $value) {
+            $stmt->bindValue(':' . $key, $value, PDO::PARAM_INT);
+        }
+        $stmt->execute();
+    }
+
+    return $stmt->fetchAll();
+}
+
+function issue_fetch_latest_staff_responses(int $userId, int $limit = 5): array
+{
+    $prioritySelect = issue_issue_column_exists('priority') ? 'i.priority' : 'NULL AS priority';
+
+    $stmt = db()->prepare(
+        "SELECT ic.id, ic.comment, ic.created_at, i.ticket_number, i.title, i.status, $prioritySelect,
+                u.full_name AS author_name, r.name AS author_role
+         FROM issue_comments ic
+         INNER JOIN issues i ON i.id = ic.issue_id
+         INNER JOIN users u ON u.id = ic.user_id
+         INNER JOIN roles r ON r.id = u.role_id
+         WHERE i.user_id = :user_id AND r.name IN ('staff', 'admin')
+         ORDER BY ic.created_at DESC, ic.id DESC
+         LIMIT :limit"
+    );
+    $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+    $stmt->bindValue(':limit', max(1, min(20, $limit)), PDO::PARAM_INT);
+    $stmt->execute();
+
+    return $stmt->fetchAll();
+}
+
+function issue_fetch_staff_workload(): array
+{
+    $statusColumn = 'i.status';
+    $stmt = db()->query(
+        "SELECT
+            u.id,
+            u.full_name,
+            u.email,
+            COUNT(i.id) AS total_assigned,
+            SUM(CASE WHEN $statusColumn IN ('submitted', 'under_review', 'pending') THEN 1 ELSE 0 END) AS pending_tasks,
+            SUM(CASE WHEN $statusColumn IN ('assigned', 'in_progress') THEN 1 ELSE 0 END) AS active_tasks,
+            SUM(CASE WHEN $statusColumn IN ('resolved', 'closed') THEN 1 ELSE 0 END) AS resolved_tasks
+         FROM users u
+         INNER JOIN roles r ON r.id = u.role_id
+         LEFT JOIN issues i ON i.assigned_to = u.id
+         WHERE u.is_active = 1 AND r.name IN ('staff', 'admin')
+         GROUP BY u.id, u.full_name, u.email
+         ORDER BY total_assigned DESC, u.full_name ASC"
+    );
+
+    return $stmt->fetchAll();
+}
+
+function issue_fetch_common_categories(int $limit = 5): array
+{
+    $stmt = db()->prepare(
+        'SELECT c.id, c.name, c.slug, COUNT(i.id) AS issue_count
+         FROM issue_categories c
+         LEFT JOIN issues i ON i.category_id = c.id
+         GROUP BY c.id, c.name, c.slug
+         ORDER BY issue_count DESC, c.sort_order ASC, c.name ASC
+         LIMIT :limit'
+    );
+    $stmt->bindValue(':limit', max(1, min(20, $limit)), PDO::PARAM_INT);
+    $stmt->execute();
+
+    return $stmt->fetchAll();
+}
+
+function issue_fetch_notifications(int $userId, int $limit = 10): array
+{
+    if (!issue_table_exists('notifications')) {
+        return [];
+    }
+
+    $stmt = db()->prepare(
+        'SELECT id, user_id, message, is_read, created_at
+         FROM notifications
+         WHERE user_id = :user_id
+         ORDER BY created_at DESC, id DESC
+         LIMIT :limit'
+    );
+    $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+    $stmt->bindValue(':limit', max(1, min(50, $limit)), PDO::PARAM_INT);
+    $stmt->execute();
+
+    return $stmt->fetchAll();
+}
+
+function issue_mark_notification_read(int $notificationId, int $userId): void
+{
+    if (!issue_table_exists('notifications')) {
+        return;
+    }
+
+    $stmt = db()->prepare('UPDATE notifications SET is_read = 1 WHERE id = :id AND user_id = :user_id');
+    $stmt->execute([
+        'id' => $notificationId,
+        'user_id' => $userId,
+    ]);
+}
+
+function issue_issue_status_transition_description(string $status, ?string $previousStatus = null): string
+{
+    if ($previousStatus !== null && $previousStatus !== '' && $previousStatus !== $status) {
+        return sprintf('Issue status changed from %s to %s.', issue_status_label($previousStatus), issue_status_label($status));
+    }
+
+    return sprintf('Issue marked as %s.', issue_status_label($status));
+}
+
+function issue_add_comment(int $issueId, int $userId, string $comment, bool $isPublic = true): int
 {
     $stmt = db()->prepare(
         'INSERT INTO issue_comments (issue_id, user_id, comment, is_public)
@@ -523,4 +1076,147 @@ function issue_add_comment(int $issueId, int $userId, string $comment, bool $isP
         'comment' => trim($comment),
         'is_public' => $isPublic ? 1 : 0,
     ]);
+
+    return (int) db()->lastInsertId();
+}
+
+function issue_update_workflow(int $issueId, string $status, ?int $assignedTo, int $actorId, ?string $comment = null, ?string $priority = null, ?string $resolutionNotes = null): void
+{
+    $issue = issue_fetch_issue_by_id($issueId);
+    if (!$issue) {
+        throw new RuntimeException('Issue not found.');
+    }
+
+    $validStatuses = issue_workflow_statuses();
+    if (!in_array($status, $validStatuses, true)) {
+        throw new InvalidArgumentException('Invalid workflow status.');
+    }
+
+    $validPriorities = array_keys(issue_priority_catalog());
+    if ($priority !== null && !in_array($priority, $validPriorities, true)) {
+        throw new InvalidArgumentException('Invalid issue priority.');
+    }
+
+    $hasPriorityColumn = issue_issue_column_exists('priority');
+    $hasResolutionNotesColumn = issue_issue_column_exists('resolution_notes');
+    $hasResolvedAtColumn = issue_issue_column_exists('resolved_at');
+    $hasReopenedAtColumn = issue_issue_column_exists('reopened_at');
+
+    db()->beginTransaction();
+
+    try {
+        $previousStatus = (string) $issue['status'];
+        $previousPriority = (string) ($issue['priority'] ?? 'medium');
+        $previousAssignee = isset($issue['assigned_to']) ? (int) $issue['assigned_to'] : null;
+        $newPriority = $priority ?? $previousPriority;
+        $normalizedResolutionNotes = $resolutionNotes !== null ? trim($resolutionNotes) : null;
+
+        $setParts = [
+            'status = :status',
+            'assigned_to = :assigned_to',
+        ];
+        $updateParams = [
+            'status' => $status,
+            'assigned_to' => $assignedTo,
+            'id' => $issueId,
+        ];
+
+        if ($hasPriorityColumn) {
+            $setParts[] = 'priority = :priority';
+            $updateParams['priority'] = $newPriority;
+        }
+
+        if ($hasResolutionNotesColumn) {
+            $setParts[] = 'resolution_notes = COALESCE(:resolution_notes, resolution_notes)';
+            $updateParams['resolution_notes'] = $normalizedResolutionNotes;
+        }
+
+        if ($hasResolvedAtColumn) {
+            $setParts[] = 'resolved_at = CASE WHEN :status_resolved = 1 THEN COALESCE(resolved_at, CURRENT_TIMESTAMP) ELSE resolved_at END';
+            $updateParams['status_resolved'] = in_array($status, issue_resolved_statuses(), true) ? 1 : 0;
+        }
+
+        if ($hasReopenedAtColumn) {
+            $setParts[] = 'reopened_at = CASE WHEN :status_reopened = 1 THEN CURRENT_TIMESTAMP ELSE reopened_at END';
+            $updateParams['status_reopened'] = $status === 'reopened' ? 1 : 0;
+        }
+
+        $update = db()->prepare('UPDATE issues SET ' . implode(', ', $setParts) . ' WHERE id = :id');
+        $update->execute($updateParams);
+
+        if ($previousStatus !== $status) {
+            issue_record_issue_log($issueId, $actorId, 'status_updated', issue_issue_status_transition_description($status, $previousStatus));
+        }
+
+        if ($hasPriorityColumn && $previousPriority !== $newPriority) {
+            issue_record_issue_log($issueId, $actorId, 'priority_updated', sprintf('Priority changed from %s to %s.', issue_priority_label($previousPriority), issue_priority_label($newPriority)));
+        }
+
+        if ($previousAssignee !== $assignedTo) {
+            if ($previousAssignee === null && $assignedTo !== null) {
+                issue_record_issue_log($issueId, $actorId, 'issue_assigned', 'Issue assigned to a staff member.');
+            } elseif ($previousAssignee !== null && $assignedTo !== null) {
+                issue_record_issue_log($issueId, $actorId, 'issue_reassigned', 'Issue reassigned to another staff member.');
+            } elseif ($previousAssignee !== null && $assignedTo === null) {
+                issue_record_issue_log($issueId, $actorId, 'issue_reassigned', 'Issue was unassigned.');
+            }
+        }
+
+        if ($hasResolutionNotesColumn && $normalizedResolutionNotes !== null && $normalizedResolutionNotes !== '') {
+            $resolvedAction = in_array($status, issue_resolved_statuses(), true) ? 'issue_resolved' : 'status_updated';
+            issue_record_issue_log($issueId, $actorId, $resolvedAction, 'Resolution notes added: ' . $normalizedResolutionNotes);
+        }
+
+        if ($comment !== null && trim($comment) !== '') {
+            issue_add_comment($issueId, $actorId, trim($comment), true);
+            issue_record_issue_log($issueId, $actorId, 'comment_added', 'Workflow comment added.');
+        }
+
+        $notifications = [];
+        $reporterId = (int) ($issue['user_id'] ?? 0);
+
+        if ($reporterId > 0) {
+            $notifications[] = [
+                'user_id' => $reporterId,
+                'message' => 'Your issue ' . ($issue['ticket_number'] ?? '') . ' was updated.',
+            ];
+        }
+
+        if ($assignedTo !== null) {
+            $notifications[] = [
+                'user_id' => $assignedTo,
+                'message' => 'An issue has been assigned to you.',
+            ];
+        }
+
+        foreach ($notifications as $notification) {
+            if ($notification['user_id'] !== $actorId) {
+                issue_create_notification((int) $notification['user_id'], (string) $notification['message']);
+            }
+        }
+
+        db()->commit();
+    } catch (Throwable $throwable) {
+        db()->rollBack();
+
+        throw $throwable;
+    }
+}
+
+function issue_fetch_issue_logs(int $issueId, int $page = 1, int $perPage = 20): array
+{
+    $timeline = issue_fetch_issue_timeline($issueId, $page, $perPage);
+
+    $items = [];
+    foreach ($timeline['items'] as $entry) {
+        if (($entry['entry_type'] ?? '') !== 'log') {
+            continue;
+        }
+
+        $items[] = $entry;
+    }
+
+    $timeline['items'] = $items;
+
+    return $timeline;
 }

@@ -147,6 +147,58 @@ body.app-shell {
     color: #212529;
 }
 
+.issue-badge.danger {
+    background: #f8d7da;
+    color: #842029;
+}
+
+.timeline-list .border {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 248, 0.98));
+}
+
+.comment-compose {
+    border-top: 1px solid rgba(31, 122, 61, 0.12);
+    padding-top: 1rem;
+}
+
+.comment-compose textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.critical-pill {
+    background: #f8d7da;
+    color: #842029;
+}
+
+.compact-card {
+    border-radius: 14px;
+    padding: 1rem !important;
+}
+
+.compact-card .card-kicker {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(31, 45, 31, 0.65);
+}
+
+.compact-card .card-value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.compact-card .card-meta {
+    font-size: 0.86rem;
+    color: #6c757d;
+}
+
+.compact-stack > * + * {
+    margin-top: 0.75rem;
+}
+
 .table thead th {
     background: #f8faf8;
     color: var(--app-ink);
