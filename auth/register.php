@@ -115,7 +115,7 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="col-lg-5 auth-aside d-flex flex-column justify-content-between">
             <div>
                 <div class="portal-brand">
-                    <span class="emblem" aria-hidden="true"></span>
+                    <img class="emblem" src="<?= e(app_url('KCCA.png')) ?>" alt="KCCA logo">
                     <div class="title">KCCA Smart Civic App</div>
                 </div>
                 <h2 class="h5 fw-semibold">Citizen Registration</h2>

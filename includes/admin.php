@@ -517,6 +517,8 @@ function admin_fetch_global_search(string $term, int $limit = 50): array
     }
 
     $limit = max(1, min(100, $limit));
+    $hasResolutionNotesColumn = issue_issue_column_exists('resolution_notes');
+
     $like = '%' . $term . '%';
 
     $sql = "SELECT * FROM (
@@ -528,15 +530,23 @@ function admin_fetch_global_search(string $term, int $limit = 50): array
             c.name AS meta_label,
             i.location AS location_label,
             i.status AS status_label,
-            i.resolution_notes AS notes_label,
+            " . ($hasResolutionNotesColumn ? 'i.resolution_notes AS notes_label' : 'NULL AS notes_label') . ",
             reporter.full_name AS owner_label,
             assignee.full_name AS assigned_label,
             i.created_at AS created_at
         FROM issues i
         INNER JOIN issue_categories c ON c.id = i.category_id
-        INNER JOIN users reporter ON reporter.id = i.user_id
         LEFT JOIN users assignee ON assignee.id = i.assigned_to
-        WHERE i.ticket_number LIKE :search1 OR i.title LIKE :search1 OR i.description LIKE :search1 OR i.location LIKE :search1 OR c.name LIKE :search1 OR reporter.full_name LIKE :search1 OR reporter.email LIKE :search1 OR assignee.full_name LIKE :search1 OR i.resolution_notes LIKE :search1
+        INNER JOIN users reporter ON reporter.id = i.user_id
+        WHERE i.ticket_number LIKE :issue_ticket
+           OR i.title LIKE :issue_title
+           OR i.description LIKE :issue_description
+           OR i.location LIKE :issue_location
+           OR c.name LIKE :issue_category
+           OR reporter.full_name LIKE :issue_owner
+           OR reporter.email LIKE :issue_owner_email
+           OR assignee.full_name LIKE :issue_assignee
+           " . ($hasResolutionNotesColumn ? "OR i.resolution_notes LIKE :issue_notes" : '') . "
         UNION ALL
         SELECT
             'comment' AS result_type,
@@ -555,7 +565,7 @@ function admin_fetch_global_search(string $term, int $limit = 50): array
         INNER JOIN issue_categories c ON c.id = i.category_id
         INNER JOIN users commenter ON commenter.id = ic.user_id
         LEFT JOIN users assignee ON assignee.id = i.assigned_to
-        WHERE ic.comment LIKE :search2
+        WHERE ic.comment LIKE :comment_search
         UNION ALL
         SELECT
             'user' AS result_type,
@@ -571,15 +581,29 @@ function admin_fetch_global_search(string $term, int $limit = 50): array
             u.created_at AS created_at
         FROM users u
         INNER JOIN roles r ON r.id = u.role_id
-        WHERE u.full_name LIKE :search3 OR u.email LIKE :search3 OR u.division LIKE :search3
+        WHERE u.full_name LIKE :user_full_name
+           OR u.email LIKE :user_email
+           OR u.division LIKE :user_division
     ) AS search_results
     ORDER BY created_at DESC, result_type ASC, primary_label ASC
     LIMIT :limit";
 
     $stmt = db()->prepare($sql);
-    $stmt->bindValue(':search1', $like, PDO::PARAM_STR);
-    $stmt->bindValue(':search2', $like, PDO::PARAM_STR);
-    $stmt->bindValue(':search3', $like, PDO::PARAM_STR);
+    $stmt->bindValue(':issue_ticket', $like, PDO::PARAM_STR);
+    $stmt->bindValue(':issue_title', $like, PDO::PARAM_STR);
+    $stmt->bindValue(':issue_description', $like, PDO::PARAM_STR);
+    $stmt->bindValue(':issue_location', $like, PDO::PARAM_STR);
+    $stmt->bindValue(':issue_category', $like, PDO::PARAM_STR);
+    $stmt->bindValue(':issue_owner', $like, PDO::PARAM_STR);
+    $stmt->bindValue(':issue_owner_email', $like, PDO::PARAM_STR);
+    $stmt->bindValue(':issue_assignee', $like, PDO::PARAM_STR);
+    if ($hasResolutionNotesColumn) {
+        $stmt->bindValue(':issue_notes', $like, PDO::PARAM_STR);
+    }
+    $stmt->bindValue(':comment_search', $like, PDO::PARAM_STR);
+    $stmt->bindValue(':user_full_name', $like, PDO::PARAM_STR);
+    $stmt->bindValue(':user_email', $like, PDO::PARAM_STR);
+    $stmt->bindValue(':user_division', $like, PDO::PARAM_STR);
     $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
     $stmt->execute();
 

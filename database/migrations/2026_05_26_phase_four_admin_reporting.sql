@@ -163,16 +163,17 @@ WHERE NOT EXISTS (
 );
 
 ALTER TABLE issues
+    ADD COLUMN IF NOT EXISTS resolution_notes TEXT NULL,
     ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMP NULL,
     ADD COLUMN IF NOT EXISTS reopened_at TIMESTAMP NULL;
 
 ALTER TABLE issues
-    ADD KEY idx_issues_created_at (created_at),
-    ADD KEY idx_issues_updated_at (updated_at),
-    ADD KEY idx_issues_resolved_at (resolved_at);
+    ADD KEY IF NOT EXISTS idx_issues_created_at (created_at),
+    ADD KEY IF NOT EXISTS idx_issues_updated_at (updated_at),
+    ADD KEY IF NOT EXISTS idx_issues_resolved_at (resolved_at);
 
 ALTER TABLE issue_comments
-    ADD KEY idx_issue_comments_created_at (created_at);
+    ADD KEY IF NOT EXISTS idx_issue_comments_created_at (created_at);
 
 ALTER TABLE issue_logs
-    ADD KEY idx_issue_logs_created_at (created_at);
+    ADD KEY IF NOT EXISTS idx_issue_logs_created_at (created_at);
