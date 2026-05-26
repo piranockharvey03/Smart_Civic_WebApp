@@ -15,10 +15,32 @@ $user = current_user();
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+        (function() {
+            const storageKey = 'smart-civic-theme';
+            const root = document.documentElement;
+
+            const applyTheme = (theme) => {
+                const nextTheme = theme === 'dark' ? 'dark' : 'light';
+
+                root.setAttribute('data-bs-theme', nextTheme);
+                root.style.colorScheme = nextTheme;
+            };
+
+            try {
+                const savedTheme = localStorage.getItem(storageKey);
+                const theme = savedTheme || 'light';
+
+                applyTheme(theme);
+            } catch (error) {
+                applyTheme('light');
+            }
+        })();
+    </script>
     <title><?= e($pageTitle) ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="<?= e(app_url('assets/css/style.css')) ?>" rel="stylesheet">
+    <link href="<?= e(app_url('assets/css/style.css') . '?v=' . filemtime(__DIR__ . '/../assets/css/style.css')) ?>" rel="stylesheet">
 </head>
 
 <body class="app-shell">
@@ -48,8 +70,12 @@ $user = current_user();
                 <button class="btn btn-outline-light d-lg-none me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebar" aria-controls="appSidebar">
                     <i class="bi bi-list"></i>
                 </button>
-                <a class="navbar-brand fw-semibold text-success" href="<?= e(app_url('index.php')) ?>"><?= e(APP_NAME) ?></a>
-                <div class="ms-auto d-flex align-items-center gap-3 text-muted small">
+                <a class="navbar-brand fw-semibold text-success me-auto" href="<?= e(app_url('index.php')) ?>"><?= e(APP_NAME) ?></a>
+                <div class="d-flex align-items-center gap-3 text-muted small">
+                    <button type="button" class="btn btn-sm btn-outline-secondary theme-toggle" data-theme-toggle aria-pressed="false" aria-label="Toggle dark mode">
+                        <i class="bi bi-moon-stars" data-theme-icon></i>
+                        <span class="d-none d-sm-inline" data-theme-label>Dark mode</span>
+                    </button>
                     <span><?= e($user['full_name'] ?? '') ?></span>
                     <span class="badge text-bg-light text-uppercase"><?= e($user['role'] ?? '') ?></span>
                 </div>

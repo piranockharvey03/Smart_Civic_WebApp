@@ -55,7 +55,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
         </div>
 
         <div class="col-md-6 col-xl-3">
-            <div class="app-card bg-white metric-card metric-green compact-card h-100">
+            <div class="app-card bg-white compact-card h-100">
                 <div class="card-kicker">Assigned Tickets</div>
                 <div class="d-flex justify-content-between align-items-end mt-2">
                     <div class="card-value"><?= e((string) ($myWorkload['total_assigned'] ?? 0)) ?></div>
@@ -64,7 +64,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
         <div class="col-md-6 col-xl-3">
-            <div class="app-card bg-white metric-card metric-red compact-card h-100">
+            <div class="app-card bg-white compact-card h-100">
                 <div class="card-kicker">Active Tasks</div>
                 <div class="d-flex justify-content-between align-items-end mt-2">
                     <div class="card-value"><?= e((string) ($myWorkload['active_tasks'] ?? 0)) ?></div>
@@ -73,7 +73,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
         <div class="col-md-6 col-xl-3">
-            <div class="app-card bg-white metric-card metric-yellow compact-card h-100">
+            <div class="app-card bg-white compact-card h-100">
                 <div class="card-kicker">Pending Tasks</div>
                 <div class="d-flex justify-content-between align-items-end mt-2">
                     <div class="card-value"><?= e((string) ($myWorkload['pending_tasks'] ?? 0)) ?></div>
@@ -82,7 +82,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
         <div class="col-md-6 col-xl-3">
-            <div class="app-card bg-white metric-card metric-green compact-card h-100">
+            <div class="app-card bg-white compact-card h-100">
                 <div class="card-kicker">Resolved Tasks</div>
                 <div class="d-flex justify-content-between align-items-end mt-2">
                     <div class="card-value"><?= e((string) ($myWorkload['resolved_tasks'] ?? 0)) ?></div>

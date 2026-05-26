@@ -31,7 +31,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
         <div class="col-md-6 col-xl-3">
-            <div class="app-card bg-white metric-card metric-green compact-card h-100">
+            <div class="app-card bg-white compact-card h-100">
                 <div class="card-kicker">Total Issues</div>
                 <div class="d-flex justify-content-between align-items-end mt-2">
                     <div class="card-value"><?= e((string) $stats['total']) ?></div>
@@ -40,7 +40,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
         <div class="col-md-6 col-xl-3">
-            <div class="app-card bg-white metric-card metric-yellow compact-card h-100">
+            <div class="app-card bg-white compact-card h-100">
                 <div class="card-kicker">Open Issues</div>
                 <div class="d-flex justify-content-between align-items-end mt-2">
                     <div class="card-value"><?= e((string) $stats['open']) ?></div>
@@ -49,7 +49,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
         <div class="col-md-6 col-xl-3">
-            <div class="app-card bg-white metric-card metric-red compact-card h-100">
+            <div class="app-card bg-white compact-card h-100">
                 <div class="card-kicker">Pending Issues</div>
                 <div class="d-flex justify-content-between align-items-end mt-2">
                     <div class="card-value"><?= e((string) $stats['pending']) ?></div>
@@ -58,7 +58,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
         <div class="col-md-6 col-xl-3">
-            <div class="app-card bg-white metric-card metric-green compact-card h-100">
+            <div class="app-card bg-white compact-card h-100">
                 <div class="card-kicker">Resolved</div>
                 <div class="d-flex justify-content-between align-items-end mt-2">
                     <div class="card-value"><?= e((string) $stats['resolved']) ?></div>
