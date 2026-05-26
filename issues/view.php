@@ -262,14 +262,6 @@ if (is_logged_in()) {
                             <div class="alert alert-success mb-0"><?= nl2br(e((string) $issue['resolution_notes'])) ?></div>
                         </div>
                     <?php endif; ?>
-                    <div class="col-12">
-                        <div class="text-muted small text-uppercase mb-2">Uploaded Photo</div>
-                        <?php if (!empty($issue['image'])) : ?>
-                            <img class="img-fluid rounded-3 border" src="<?= e(issue_upload_url((string) $issue['image']) ?? '') ?>" alt="Issue photo">
-                        <?php else : ?>
-                            <div class="alert alert-light mb-0">No image uploaded for this ticket.</div>
-                        <?php endif; ?>
-                    </div>
                 </div>
             </div>
 
@@ -346,6 +338,23 @@ if (is_logged_in()) {
         </div>
 
         <div class="col-lg-4">
+            <div class="app-card bg-white p-4 mb-4">
+                <h2 class="h5 mb-3">Submitted Photo</h2>
+                <?php if (!empty($issue['image'])) : ?>
+                    <?php $issueImageUrl = app_url('issues/image.php?id=' . (int) $issue['id']); ?>
+                    <?php if ($issueImageUrl) : ?>
+                        <a href="<?= e($issueImageUrl) ?>" target="_blank" rel="noopener noreferrer" class="d-block">
+                            <img class="img-fluid rounded-3 border w-100" src="<?= e($issueImageUrl) ?>" alt="Citizen submitted issue photo" style="max-height: 320px; object-fit: cover;">
+                        </a>
+                        <div class="small text-muted mt-2">Click the image to open the full-size upload.</div>
+                    <?php else : ?>
+                        <div class="alert alert-light mb-0">The uploaded image could not be located.</div>
+                    <?php endif; ?>
+                <?php else : ?>
+                    <div class="alert alert-light mb-0">No image was uploaded for this ticket.</div>
+                <?php endif; ?>
+            </div>
+
             <div class="app-card bg-white p-4 mb-4">
                 <h2 class="h5 mb-3">Issue Summary</h2>
                 <div class="d-grid gap-3">
