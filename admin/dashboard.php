@@ -31,6 +31,26 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
         </div>
+        <div class="col-12">
+            <div class="app-card bg-white compact-card">
+                <div class="section-header mb-3">
+                    <div>
+                        <h2 class="h5 mb-1">Admin Control Center</h2>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/reports.php')) ?>">Reports Center</a></div>
+                    <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/analytics.php')) ?>">Analytics Dashboard</a></div>
+                    <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/users.php')) ?>">User Management</a></div>
+                    <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/settings.php')) ?>">System Settings</a></div>
+                    <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/audit.php')) ?>">Audit Trail</a></div>
+                    <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/permissions.php')) ?>">Permissions</a></div>
+                    <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/search.php')) ?>">Global Search</a></div>
+                    <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/notifications.php')) ?>">Notifications</a></div>
+                    <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/backup.php')) ?>">Backup Center</a></div>
+                </div>
+            </div>
+        </div>
         <div class="col-md-6 col-xl-3">
             <div class="app-card bg-white compact-card h-100">
                 <div class="card-kicker">Total Issues</div>

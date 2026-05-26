@@ -301,7 +301,13 @@ UPDATE CURRENT_TIMESTAMP,
     KEY idx_issues_location
 (location),
     KEY idx_issues_assigned_to
-(assigned_to),
+    (assigned_to),
+    KEY idx_issues_created_at
+    (created_at),
+    KEY idx_issues_updated_at
+    (updated_at),
+    KEY idx_issues_resolved_at
+    (resolved_at),
     CONSTRAINT fk_issues_users
         FOREIGN KEY
 (user_id) REFERENCES users

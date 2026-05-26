@@ -21,6 +21,8 @@ $issueQueueLink = match ($role) {
     'staff' => app_url('staff/issues.php?status=submitted'),
     default => app_url('citizen/report-issue.php'),
 };
+
+$sidebarLogoUrl = app_url('KCCA.png');
 ?>
 <div class="offcanvas-lg offcanvas-start app-sidebar" tabindex="-1" id="appSidebar" aria-labelledby="appSidebarLabel">
     <div class="offcanvas-header d-lg-none">
@@ -31,7 +33,10 @@ $issueQueueLink = match ($role) {
         <aside class="sidebar h-100">
             <div class="sidebar-brand px-4 py-4 border-bottom">
                 <div class="small text-uppercase text-muted fw-semibold">KCCA Civic Platform</div>
-                <div class="h5 mb-0 text-success"><?= e(APP_NAME) ?></div>
+               
+            </div>
+            <div class="sidebar-logo px-4 py-3 border-bottom">
+                <img class="sidebar-logo-image" src="<?= e($sidebarLogoUrl) ?>" alt="KCCA logo">
             </div>
             <nav class="nav flex-column px-3 py-4 gap-2">
                 <a class="nav-link <?= ($activePage === 'dashboard') ? 'active' : '' ?>" href="<?= e($dashboardLink) ?>">
@@ -46,6 +51,15 @@ $issueQueueLink = match ($role) {
                 <?php elseif ($role === 'admin') : ?>
                     <a class="nav-link <?= ($activePage === 'admin-issues') ? 'active' : '' ?>" href="<?= e($issueListLink) ?>">Issue Management</a>
                     <a class="nav-link" href="<?= e($issueQueueLink) ?>">Submitted Queue</a>
+                    <a class="nav-link <?= ($activePage === 'admin-reports') ? 'active' : '' ?>" href="<?= e(app_url('admin/reports.php')) ?>">Reports</a>
+                    <a class="nav-link <?= ($activePage === 'admin-analytics') ? 'active' : '' ?>" href="<?= e(app_url('admin/analytics.php')) ?>">Analytics</a>
+                    <a class="nav-link <?= ($activePage === 'admin-users') ? 'active' : '' ?>" href="<?= e(app_url('admin/users.php')) ?>">Users</a>
+                    <a class="nav-link <?= ($activePage === 'admin-settings') ? 'active' : '' ?>" href="<?= e(app_url('admin/settings.php')) ?>">Settings</a>
+                    <a class="nav-link <?= ($activePage === 'admin-permissions') ? 'active' : '' ?>" href="<?= e(app_url('admin/permissions.php')) ?>">Permissions</a>
+                    <a class="nav-link <?= ($activePage === 'admin-audit') ? 'active' : '' ?>" href="<?= e(app_url('admin/audit.php')) ?>">Audit Trail</a>
+                    <a class="nav-link <?= ($activePage === 'admin-search') ? 'active' : '' ?>" href="<?= e(app_url('admin/search.php')) ?>">Global Search</a>
+                    <a class="nav-link <?= ($activePage === 'admin-notifications') ? 'active' : '' ?>" href="<?= e(app_url('admin/notifications.php')) ?>">Notifications</a>
+                    <a class="nav-link <?= ($activePage === 'admin-backup') ? 'active' : '' ?>" href="<?= e(app_url('admin/backup.php')) ?>">Backup Center</a>
                 <?php endif; ?>
                 <a class="nav-link text-danger" href="<?= e(app_url('auth/logout.php')) ?>">
                     Logout
