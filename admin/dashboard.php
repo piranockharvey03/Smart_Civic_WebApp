@@ -44,10 +44,13 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/users.php')) ?>">User Management</a></div>
                     <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/settings.php')) ?>">System Settings</a></div>
                     <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/audit.php')) ?>">Audit Trail</a></div>
+                    <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/system-logs.php')) ?>">System Logs</a></div>
                     <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/permissions.php')) ?>">Permissions</a></div>
                     <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/search.php')) ?>">Global Search</a></div>
                     <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/notifications.php')) ?>">Notifications</a></div>
+                    <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/trash.php')) ?>">Trash Center</a></div>
                     <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/backup.php')) ?>">Backup Center</a></div>
+                    <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/maintenance.php')) ?>">Maintenance</a></div>
                 </div>
             </div>
         </div>

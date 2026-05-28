@@ -27,8 +27,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (!$errors) {
+            $hasResetColumn = db_column_exists('users', 'must_change_password');
+            $resetSelect = $hasResetColumn ? ', u.must_change_password' : ', 0 AS must_change_password';
             $stmt = db()->prepare(
-                'SELECT u.id, u.full_name, u.email, u.password, u.role_id,
+                'SELECT u.id, u.full_name, u.email, u.password, u.role_id' . $resetSelect . ',
                     sp.phone AS phone,
                     sp.division AS division,
                         r.name AS role_name
@@ -45,8 +47,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 login_user($user);
                 persist_user_session($user);
                 clear_old();
-                set_flash('success', 'Welcome back, ' . $user['full_name'] . '!');
+                if (!empty($user['must_change_password'])) {
+                    set_flash('warning', 'Please set a new password before continuing.');
+                    redirect(app_url('auth/password-reset.php'));
+                }
 
+                set_flash('success', 'Welcome back, ' . $user['full_name'] . '!');
                 redirect(dashboard_url_for_role($user['role_name']));
             }
 

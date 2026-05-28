@@ -17,8 +17,17 @@ if (file_exists($vendorAutoload)) {
 require_once __DIR__ . '/session.php';
 require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/logging.php';
 require_once __DIR__ . '/../includes/issues.php';
 require_once __DIR__ . '/../includes/admin.php';
 require_once __DIR__ . '/../includes/auth.php';
 
 start_secure_session();
+app_register_error_handlers();
+
+if (is_logged_in() && current_user_must_change_password()) {
+    $scriptName = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+    if (!in_array($scriptName, ['password-reset.php', 'logout.php'], true)) {
+        redirect(app_url('auth/password-reset.php'));
+    }
+}

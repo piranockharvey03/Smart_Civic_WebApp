@@ -17,6 +17,27 @@ IF NOT EXISTS roles
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
+-- Ensure soft-delete columns exist (safe to run on an existing database)
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL,
+    ADD COLUMN IF NOT EXISTS deleted_by BIGINT UNSIGNED NULL;
+
+ALTER TABLE issues
+    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL,
+    ADD COLUMN IF NOT EXISTS deleted_by BIGINT UNSIGNED NULL;
+
+ALTER TABLE issue_comments
+    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL,
+    ADD COLUMN IF NOT EXISTS deleted_by BIGINT UNSIGNED NULL;
+
+-- Add indexes for soft-delete columns if supported by the server
+ALTER TABLE users ADD INDEX IF NOT EXISTS idx_users_deleted_at (deleted_at);
+ALTER TABLE users ADD INDEX IF NOT EXISTS idx_users_deleted_by (deleted_by);
+ALTER TABLE issues ADD INDEX IF NOT EXISTS idx_issues_deleted_at (deleted_at);
+ALTER TABLE issues ADD INDEX IF NOT EXISTS idx_issues_deleted_by (deleted_by);
+ALTER TABLE issue_comments ADD INDEX IF NOT EXISTS idx_issue_comments_deleted_at (deleted_at);
+ALTER TABLE issue_comments ADD INDEX IF NOT EXISTS idx_issue_comments_deleted_by (deleted_by);
+
 INSERT INTO roles
     (name, description)
 VALUES
@@ -50,6 +71,9 @@ IF NOT EXISTS users
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON
 UPDATE CURRENT_TIMESTAMP,
+    must_change_password TINYINT(1) NOT NULL DEFAULT 0,
+     deleted_at TIMESTAMP NULL,
+     deleted_by BIGINT UNSIGNED NULL,
     UNIQUE KEY uq_users_email (email),
     KEY idx_users_role_id
 (role_id),
@@ -343,10 +367,16 @@ IF NOT EXISTS issue_comments
     is_public TINYINT
 (1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    deleted_by BIGINT UNSIGNED NULL,
     KEY idx_issue_comments_issue_id
 (issue_id),
     KEY idx_issue_comments_user_id
 (user_id),
+    KEY idx_issue_comments_deleted_at
+(deleted_at),
+    KEY idx_issue_comments_deleted_by
+(deleted_by),
     CONSTRAINT fk_issue_comments_issues
         FOREIGN KEY
 (issue_id) REFERENCES issues
@@ -423,4 +453,39 @@ IF NOT EXISTS notifications
 UPDATE CASCADE
         ON
 DELETE CASCADE
+) ENGINE=InnoDB;
+CREATE TABLE
+IF NOT EXISTS system_logs
+(
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NULL,
+    log_type VARCHAR
+(40) NOT NULL,
+    severity VARCHAR
+(20) NOT NULL,
+    source VARCHAR
+(120) NULL,
+    message VARCHAR
+(500) NOT NULL,
+    context_json JSON NULL,
+    ip_address VARCHAR
+(45) NULL,
+    user_agent VARCHAR
+(255) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_system_logs_log_type
+(log_type),
+    KEY idx_system_logs_severity
+(severity),
+    KEY idx_system_logs_user_id
+(user_id),
+    KEY idx_system_logs_created_at
+(created_at),
+    CONSTRAINT fk_system_logs_users
+        FOREIGN KEY
+(user_id) REFERENCES users
+(id)
+        ON
+UPDATE CASCADE
+        ON DELETE SET NULL
 ) ENGINE=InnoDB;

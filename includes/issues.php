@@ -520,6 +520,14 @@ function issue_fetch_management_issues(array $filters = []): array
     $conditions = [];
     $params = [];
     $hasPriorityColumn = issue_issue_column_exists('priority');
+    $deletedFilter = trim((string) ($filters['deleted'] ?? ''));
+    $deletedClause = 'i.deleted_at IS NULL';
+
+    if ($deletedFilter === '1') {
+        $deletedClause = 'i.deleted_at IS NOT NULL';
+    } elseif ($deletedFilter !== 'all') {
+        $deletedClause = 'i.deleted_at IS NULL';
+    }
 
     if (!empty($filters['ticket_number'])) {
         $conditions[] = 'i.ticket_number LIKE :ticket_number';
@@ -569,11 +577,12 @@ function issue_fetch_management_issues(array $filters = []): array
             assignee.email AS assigned_email
          FROM issues i
          INNER JOIN issue_categories c ON c.id = i.category_id
-         INNER JOIN users reporter ON reporter.id = i.user_id
-         LEFT JOIN users assignee ON assignee.id = i.assigned_to';
+         INNER JOIN users reporter ON reporter.id = i.user_id AND reporter.deleted_at IS NULL
+         LEFT JOIN users assignee ON assignee.id = i.assigned_to AND assignee.deleted_at IS NULL
+         WHERE ' . $deletedClause;
 
     if ($conditions) {
-        $sql .= ' WHERE ' . implode(' AND ', $conditions);
+        $sql .= ' AND ' . implode(' AND ', $conditions);
     }
 
     $sql .= ' ORDER BY i.updated_at DESC, i.created_at DESC, i.id DESC';
@@ -592,6 +601,14 @@ function issue_fetch_management_issue_page(array $filters = [], int $page = 1, i
     $conditions = [];
     $params = [];
     $hasPriorityColumn = issue_issue_column_exists('priority');
+    $deletedFilter = trim((string) ($filters['deleted'] ?? ''));
+    $deletedClause = 'i.deleted_at IS NULL';
+
+    if ($deletedFilter === '1') {
+        $deletedClause = 'i.deleted_at IS NOT NULL';
+    } elseif ($deletedFilter !== 'all') {
+        $deletedClause = 'i.deleted_at IS NULL';
+    }
 
     if (!empty($filters['ticket_number'])) {
         $conditions[] = 'i.ticket_number LIKE :ticket_number';
@@ -639,8 +656,9 @@ function issue_fetch_management_issue_page(array $filters = [], int $page = 1, i
         'SELECT COUNT(*) AS total
          FROM issues i
          INNER JOIN issue_categories c ON c.id = i.category_id
-         INNER JOIN users reporter ON reporter.id = i.user_id
-         LEFT JOIN users assignee ON assignee.id = i.assigned_to' . $whereSql
+            INNER JOIN users reporter ON reporter.id = i.user_id AND reporter.deleted_at IS NULL
+            LEFT JOIN users assignee ON assignee.id = i.assigned_to AND assignee.deleted_at IS NULL
+            WHERE ' . $deletedClause . ($whereSql ? ' AND ' . ltrim($whereSql, ' WHERE ') : '')
     );
     $countStmt->execute($params);
     $total = (int) ($countStmt->fetch()['total'] ?? 0);
@@ -655,9 +673,10 @@ function issue_fetch_management_issue_page(array $filters = [], int $page = 1, i
             assignee.email AS assigned_email
          FROM issues i
          INNER JOIN issue_categories c ON c.id = i.category_id
-         INNER JOIN users reporter ON reporter.id = i.user_id
-         LEFT JOIN users assignee ON assignee.id = i.assigned_to' .
-        $whereSql .
+         INNER JOIN users reporter ON reporter.id = i.user_id AND reporter.deleted_at IS NULL
+         LEFT JOIN users assignee ON assignee.id = i.assigned_to AND assignee.deleted_at IS NULL
+         WHERE ' . $deletedClause .
+        ($whereSql ? ' AND ' . ltrim($whereSql, ' WHERE ') : '') .
         ' ORDER BY i.updated_at DESC, i.created_at DESC, i.id DESC
          LIMIT :limit OFFSET :offset';
 
@@ -682,20 +701,23 @@ function issue_fetch_management_issue_page(array $filters = [], int $page = 1, i
 
 function issue_fetch_issue_by_id(int $issueId): ?array
 {
-    $stmt = db()->prepare(
-        'SELECT i.*, c.name AS category_name, c.slug AS category_slug,
-            reporter.full_name AS reporter_name,
-            reporter.email AS reporter_email,
-            reporter.division AS reporter_division,
-            assignee.full_name AS assigned_name,
-            assignee.email AS assigned_email
-         FROM issues i
-         INNER JOIN issue_categories c ON c.id = i.category_id
-         INNER JOIN users reporter ON reporter.id = i.user_id
-         LEFT JOIN users assignee ON assignee.id = i.assigned_to
-         WHERE i.id = :id
-         LIMIT 1'
-    );
+     $stmt = db()->prepare(
+          'SELECT i.*, c.name AS category_name, c.slug AS category_slug,
+                reporter.full_name AS reporter_name,
+                reporter.email AS reporter_email,
+                reporter.division AS reporter_division,
+                assignee.full_name AS assigned_name,
+                assignee.email AS assigned_email
+            FROM issues i
+            INNER JOIN issue_categories c ON c.id = i.category_id'
+                . sql_table_deleted_cond('users', 'reporter') . '
+            INNER JOIN users reporter ON reporter.id = i.user_id'
+                . sql_table_deleted_cond('users', 'reporter') . '
+            LEFT JOIN users assignee ON assignee.id = i.assigned_to'
+                . sql_table_deleted_cond('users', 'assignee') . '
+            WHERE i.id = :id AND i.deleted_at IS NULL
+            LIMIT 1'
+     );
     $stmt->execute(['id' => $issueId]);
 
     $issue = $stmt->fetch();
@@ -714,9 +736,9 @@ function issue_fetch_issue_by_ticket(string $ticketNumber): ?array
             assignee.email AS assigned_email
          FROM issues i
          INNER JOIN issue_categories c ON c.id = i.category_id
-         INNER JOIN users reporter ON reporter.id = i.user_id
-         LEFT JOIN users assignee ON assignee.id = i.assigned_to
-         WHERE i.ticket_number = :ticket_number
+         INNER JOIN users reporter ON reporter.id = i.user_id AND reporter.deleted_at IS NULL
+         LEFT JOIN users assignee ON assignee.id = i.assigned_to AND assignee.deleted_at IS NULL
+         WHERE i.ticket_number = :ticket_number AND i.deleted_at IS NULL
          LIMIT 1'
     );
     $stmt->execute(['ticket_number' => $ticketNumber]);
@@ -731,9 +753,9 @@ function issue_fetch_comments(int $issueId): array
     $stmt = db()->prepare(
         'SELECT ic.*, u.full_name AS author_name, r.name AS author_role
          FROM issue_comments ic
-         INNER JOIN users u ON u.id = ic.user_id
+         INNER JOIN users u ON u.id = ic.user_id AND u.deleted_at IS NULL
          INNER JOIN roles r ON r.id = u.role_id
-         WHERE ic.issue_id = :issue_id
+         WHERE ic.issue_id = :issue_id AND ic.deleted_at IS NULL
          ORDER BY ic.created_at ASC, ic.id ASC'
     );
     $stmt->execute(['issue_id' => $issueId]);
@@ -747,7 +769,7 @@ function issue_fetch_staff_members(): array
         "SELECT u.id, u.full_name, u.email, u.division, r.name AS role_name
          FROM users u
          INNER JOIN roles r ON r.id = u.role_id
-         WHERE u.is_active = 1 AND r.name IN ('staff', 'admin')
+         WHERE u.is_active = 1 AND u.deleted_at IS NULL AND r.name IN ('staff', 'admin')
          ORDER BY r.name ASC, u.full_name ASC"
     );
 
@@ -800,7 +822,7 @@ function issue_fetch_issue_timeline(int $issueId, int $page = 1, int $perPage = 
     if ($hasLogsTable) {
         $countStmt = db()->prepare(
             'SELECT COUNT(*) AS total FROM (
-                SELECT id, created_at FROM issue_comments WHERE issue_id = :issue_id_one
+                SELECT id, created_at FROM issue_comments WHERE issue_id = :issue_id_one AND deleted_at IS NULL
                 UNION ALL
                 SELECT id, created_at FROM issue_logs WHERE issue_id = :issue_id_two
              ) AS timeline_entries'
@@ -810,7 +832,7 @@ function issue_fetch_issue_timeline(int $issueId, int $page = 1, int $perPage = 
             'issue_id_two' => $issueParamTwo,
         ]);
     } else {
-        $countStmt = db()->prepare('SELECT COUNT(*) AS total FROM issue_comments WHERE issue_id = :issue_id_one');
+        $countStmt = db()->prepare('SELECT COUNT(*) AS total FROM issue_comments WHERE issue_id = :issue_id_one AND deleted_at IS NULL');
         $countStmt->execute(['issue_id_one' => $issueParamOne]);
     }
     $total = (int) ($countStmt->fetch()['total'] ?? 0);
@@ -830,9 +852,9 @@ function issue_fetch_issue_timeline(int $issueId, int $page = 1, int $perPage = 
                 NULL AS action,
                 NULL AS description
             FROM issue_comments ic
-            INNER JOIN users u ON u.id = ic.user_id
+            INNER JOIN users u ON u.id = ic.user_id AND u.deleted_at IS NULL
             INNER JOIN roles r ON r.id = u.role_id
-            WHERE ic.issue_id = :issue_id_one
+            WHERE ic.issue_id = :issue_id_one AND ic.deleted_at IS NULL
             UNION ALL
             SELECT
                 il.id AS entry_id,
@@ -847,7 +869,7 @@ function issue_fetch_issue_timeline(int $issueId, int $page = 1, int $perPage = 
                 il.action,
                 il.description
             FROM issue_logs il
-            INNER JOIN users u ON u.id = il.user_id
+            INNER JOIN users u ON u.id = il.user_id AND u.deleted_at IS NULL
             INNER JOIN roles r ON r.id = u.role_id
                 WHERE il.issue_id = :issue_id_two
          ) AS timeline
@@ -874,9 +896,9 @@ function issue_fetch_issue_timeline(int $issueId, int $page = 1, int $perPage = 
                 NULL AS action,
                 NULL AS description
             FROM issue_comments ic
-            INNER JOIN users u ON u.id = ic.user_id
+            INNER JOIN users u ON u.id = ic.user_id AND u.deleted_at IS NULL
             INNER JOIN roles r ON r.id = u.role_id
-            WHERE ic.issue_id = :issue_id_one
+                WHERE ic.issue_id = :issue_id_one AND ic.deleted_at IS NULL
             ORDER BY ic.created_at DESC, ic.id DESC
             LIMIT :limit OFFSET :offset";
 
@@ -921,16 +943,16 @@ function issue_fetch_recent_activity(?int $userId = null, int $limit = 5): array
                      i.ticket_number, i.title, i.status, $prioritySelect,
                    u.full_name AS actor_name, r.name AS actor_role
             FROM issue_logs il
-            INNER JOIN issues i ON i.id = il.issue_id
-            INNER JOIN users u ON u.id = il.user_id
+              INNER JOIN issues i ON i.id = il.issue_id AND i.deleted_at IS NULL
+              INNER JOIN users u ON u.id = il.user_id AND u.deleted_at IS NULL
                  INNER JOIN roles r ON r.id = u.role_id" . $userFilterLogs . "
             UNION ALL
                  SELECT ic.id AS entry_id, ic.issue_id, ic.user_id, 'comment_added' AS action, ic.comment AS description, ic.created_at,
                      i.ticket_number, i.title, i.status, $prioritySelect,
                    u.full_name AS actor_name, r.name AS actor_role
             FROM issue_comments ic
-            INNER JOIN issues i ON i.id = ic.issue_id
-            INNER JOIN users u ON u.id = ic.user_id
+              INNER JOIN issues i ON i.id = ic.issue_id AND i.deleted_at IS NULL
+              INNER JOIN users u ON u.id = ic.user_id AND u.deleted_at IS NULL
                  INNER JOIN roles r ON r.id = u.role_id" . $userFilterComments . "
         ) AS t
         ORDER BY t.created_at DESC, t.entry_id DESC
@@ -946,8 +968,8 @@ function issue_fetch_recent_activity(?int $userId = null, int $limit = 5): array
                    i.ticket_number, i.title, i.status, $prioritySelect,
                    u.full_name AS actor_name, r.name AS actor_role
              FROM issue_comments ic
-             INNER JOIN issues i ON i.id = ic.issue_id
-             INNER JOIN users u ON u.id = ic.user_id
+               INNER JOIN issues i ON i.id = ic.issue_id AND i.deleted_at IS NULL
+               INNER JOIN users u ON u.id = ic.user_id AND u.deleted_at IS NULL
              INNER JOIN roles r ON r.id = u.role_id" . $userFilterComments . "
              ORDER BY ic.created_at DESC, ic.id DESC
              LIMIT :limit"
@@ -969,10 +991,10 @@ function issue_fetch_latest_staff_responses(int $userId, int $limit = 5): array
         "SELECT ic.id, ic.comment, ic.created_at, i.ticket_number, i.title, i.status, $prioritySelect,
                 u.full_name AS author_name, r.name AS author_role
          FROM issue_comments ic
-         INNER JOIN issues i ON i.id = ic.issue_id
-         INNER JOIN users u ON u.id = ic.user_id
+            INNER JOIN issues i ON i.id = ic.issue_id AND i.deleted_at IS NULL
+            INNER JOIN users u ON u.id = ic.user_id AND u.deleted_at IS NULL
          INNER JOIN roles r ON r.id = u.role_id
-         WHERE i.user_id = :user_id AND r.name IN ('staff', 'admin')
+            WHERE i.user_id = :user_id AND i.deleted_at IS NULL AND r.name IN ('staff', 'admin')
          ORDER BY ic.created_at DESC, ic.id DESC
          LIMIT :limit"
     );
@@ -997,8 +1019,8 @@ function issue_fetch_staff_workload(): array
             SUM(CASE WHEN $statusColumn IN ('resolved', 'closed') THEN 1 ELSE 0 END) AS resolved_tasks
          FROM users u
          INNER JOIN roles r ON r.id = u.role_id
-         LEFT JOIN issues i ON i.assigned_to = u.id
-         WHERE u.is_active = 1 AND r.name IN ('staff', 'admin')
+            LEFT JOIN issues i ON i.assigned_to = u.id AND i.deleted_at IS NULL
+            WHERE u.is_active = 1 AND u.deleted_at IS NULL AND r.name IN ('staff', 'admin')
          GROUP BY u.id, u.full_name, u.email
          ORDER BY total_assigned DESC, u.full_name ASC"
     );
@@ -1011,7 +1033,7 @@ function issue_fetch_common_categories(int $limit = 5): array
     $stmt = db()->prepare(
         'SELECT c.id, c.name, c.slug, COUNT(i.id) AS issue_count
          FROM issue_categories c
-         LEFT JOIN issues i ON i.category_id = c.id
+            LEFT JOIN issues i ON i.category_id = c.id AND i.deleted_at IS NULL
          GROUP BY c.id, c.name, c.slug
          ORDER BY issue_count DESC, c.sort_order ASC, c.name ASC
          LIMIT :limit'
@@ -1078,6 +1100,34 @@ function issue_add_comment(int $issueId, int $userId, string $comment, bool $isP
     ]);
 
     return (int) db()->lastInsertId();
+}
+
+function issue_soft_delete_comment(int $commentId, int $deletedBy): void
+{
+    if (!issue_table_exists('issue_comments')) {
+        return;
+    }
+
+    $stmt = db()->prepare('UPDATE issue_comments SET deleted_at = CURRENT_TIMESTAMP, deleted_by = :deleted_by WHERE id = :id AND deleted_at IS NULL');
+    $stmt->execute([
+        'deleted_by' => $deletedBy,
+        'id' => $commentId,
+    ]);
+}
+
+function issue_soft_delete_issue(int $issueId, int $deletedBy): void
+{
+    $stmt = db()->prepare('UPDATE issues SET deleted_at = CURRENT_TIMESTAMP, deleted_by = :deleted_by WHERE id = :id AND deleted_at IS NULL');
+    $stmt->execute([
+        'deleted_by' => $deletedBy,
+        'id' => $issueId,
+    ]);
+}
+
+function issue_restore_issue(int $issueId): void
+{
+    $stmt = db()->prepare('UPDATE issues SET deleted_at = NULL, deleted_by = NULL WHERE id = :id AND deleted_at IS NOT NULL');
+    $stmt->execute(['id' => $issueId]);
 }
 
 function issue_update_workflow(int $issueId, string $status, ?int $assignedTo, int $actorId, ?string $comment = null, ?string $priority = null, ?string $resolutionNotes = null): void

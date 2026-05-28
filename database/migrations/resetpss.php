@@ -1,0 +1,1 @@
+<?php echo password_hash('NewStrongPassword123!', PASSWORD_DEFAULT);

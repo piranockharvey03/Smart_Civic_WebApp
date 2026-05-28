@@ -57,6 +57,9 @@ $sidebarLogoUrl = app_url('KCCA.png');
                     <a class="nav-link <?= ($activePage === 'admin-settings') ? 'active' : '' ?>" href="<?= e(app_url('admin/settings.php')) ?>">Settings</a>
                     <a class="nav-link <?= ($activePage === 'admin-permissions') ? 'active' : '' ?>" href="<?= e(app_url('admin/permissions.php')) ?>">Permissions</a>
                     <a class="nav-link <?= ($activePage === 'admin-audit') ? 'active' : '' ?>" href="<?= e(app_url('admin/audit.php')) ?>">Audit Trail</a>
+                    <a class="nav-link <?= ($activePage === 'admin-system-logs') ? 'active' : '' ?>" href="<?= e(app_url('admin/system-logs.php')) ?>">System Logs</a>
+                    <a class="nav-link <?= ($activePage === 'admin-maintenance') ? 'active' : '' ?>" href="<?= e(app_url('admin/maintenance.php')) ?>">Maintenance</a>
+                    <a class="nav-link <?= ($activePage === 'admin-trash') ? 'active' : '' ?>" href="<?= e(app_url('admin/trash.php')) ?>">Trash Center</a>
                     <a class="nav-link <?= ($activePage === 'admin-search') ? 'active' : '' ?>" href="<?= e(app_url('admin/search.php')) ?>">Global Search</a>
                     <a class="nav-link <?= ($activePage === 'admin-notifications') ? 'active' : '' ?>" href="<?= e(app_url('admin/notifications.php')) ?>">Notifications</a>
                     <a class="nav-link <?= ($activePage === 'admin-backup') ? 'active' : '' ?>" href="<?= e(app_url('admin/backup.php')) ?>">Backup Center</a>

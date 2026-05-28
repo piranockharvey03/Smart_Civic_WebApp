@@ -44,7 +44,13 @@ function login_user(array $user): void
         'role' => $user['role_name'],
         'role_id' => (int) $user['role_id'],
         'division' => $user['division'] ?? null,
+        'must_change_password' => !empty($user['must_change_password']) ? 1 : 0,
     ];
+}
+
+function current_user_must_change_password(): bool
+{
+    return !empty($_SESSION['user']['must_change_password']);
 }
 
 function persist_user_session(array $user): void
@@ -130,8 +136,20 @@ function require_role(array $allowedRoles): void
     $role = current_user_role();
 
     if ($role === null || !in_array($role, $allowedRoles, true)) {
+        app_log_system_event(
+            'security',
+            'warning',
+            'Unauthorized access attempt blocked',
+            [
+                'required_roles' => array_values($allowedRoles),
+                'current_role' => $role,
+                'path' => $_SERVER['REQUEST_URI'] ?? null,
+            ],
+            isset($_SESSION['user']['id']) ? (int) $_SESSION['user']['id'] : null,
+            __FUNCTION__
+        );
+
         http_response_code(403);
-        echo '403 Forbidden';
-        exit;
+        app_render_error_page(403, '403 Forbidden', 'You do not have permission to access this page.');
     }
 }

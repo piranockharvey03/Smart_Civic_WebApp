@@ -68,3 +68,37 @@ function clear_old(): void
 {
     unset($_SESSION['old']);
 }
+
+function db_column_exists(string $table, string $column): bool
+{
+    static $cache = [];
+
+    $key = $table . '.' . $column;
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+
+    try {
+        $stmt = db()->prepare(
+            'SELECT COUNT(*) AS total
+             FROM information_schema.columns
+             WHERE table_schema = DATABASE()
+               AND table_name = :table_name
+               AND column_name = :column_name'
+        );
+        $stmt->execute([
+            'table_name' => $table,
+            'column_name' => $column,
+        ]);
+        $cache[$key] = ((int) ($stmt->fetch()['total'] ?? 0)) > 0;
+    } catch (Throwable) {
+        $cache[$key] = false;
+    }
+
+    return $cache[$key];
+}
+
+function sql_table_deleted_cond(string $table, string $alias): string
+{
+    return db_column_exists($table, 'deleted_at') ? ' AND ' . $alias . '.deleted_at IS NULL' : '';
+}

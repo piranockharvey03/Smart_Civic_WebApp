@@ -38,6 +38,8 @@ function admin_query_parts(array $filters = [], bool $includePriority = true): a
     $conditions = [];
     $params = [];
 
+    $conditions[] = 'i.deleted_at IS NULL';
+
     if (!empty($filters['ticket_number'])) {
         $conditions[] = 'i.ticket_number LIKE :ticket_number';
         $params['ticket_number'] = '%' . trim((string) $filters['ticket_number']) . '%';
@@ -270,8 +272,8 @@ function admin_fetch_report_summary(array $filters = []): array
             AVG(CASE WHEN i.resolved_at IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, i.created_at, i.resolved_at) END) AS avg_resolution_minutes
          FROM issues i
          INNER JOIN issue_categories c ON c.id = i.category_id
-         INNER JOIN users reporter ON reporter.id = i.user_id
-         LEFT JOIN users assignee ON assignee.id = i.assigned_to' . $whereSql
+         INNER JOIN users reporter ON reporter.id = i.user_id AND reporter.deleted_at IS NULL
+         LEFT JOIN users assignee ON assignee.id = i.assigned_to AND assignee.deleted_at IS NULL' . $whereSql
     );
     $metricsStmt->execute($params);
     $metrics = $metricsStmt->fetch() ?: [];
@@ -280,8 +282,8 @@ function admin_fetch_report_summary(array $filters = []): array
         'SELECT c.id, c.name, COUNT(i.id) AS issue_count
          FROM issues i
          INNER JOIN issue_categories c ON c.id = i.category_id
-         INNER JOIN users reporter ON reporter.id = i.user_id
-         LEFT JOIN users assignee ON assignee.id = i.assigned_to' . $whereSql . '
+         INNER JOIN users reporter ON reporter.id = i.user_id AND reporter.deleted_at IS NULL
+         LEFT JOIN users assignee ON assignee.id = i.assigned_to AND assignee.deleted_at IS NULL' . $whereSql . '
          GROUP BY c.id, c.name, c.sort_order
          ORDER BY issue_count DESC, c.sort_order ASC, c.name ASC
          LIMIT 8'
@@ -292,8 +294,8 @@ function admin_fetch_report_summary(array $filters = []): array
         'SELECT i.location, COUNT(*) AS issue_count
          FROM issues i
          INNER JOIN issue_categories c ON c.id = i.category_id
-         INNER JOIN users reporter ON reporter.id = i.user_id
-         LEFT JOIN users assignee ON assignee.id = i.assigned_to' . $whereSql . '
+         INNER JOIN users reporter ON reporter.id = i.user_id AND reporter.deleted_at IS NULL
+         LEFT JOIN users assignee ON assignee.id = i.assigned_to AND assignee.deleted_at IS NULL' . $whereSql . '
          GROUP BY i.location
          ORDER BY issue_count DESC, i.location ASC
          LIMIT 8'
@@ -304,8 +306,8 @@ function admin_fetch_report_summary(array $filters = []): array
         'SELECT DATE_FORMAT(i.created_at, "%Y-%m") AS month_key, DATE_FORMAT(i.created_at, "%b %Y") AS month_label, COUNT(*) AS issue_count
          FROM issues i
          INNER JOIN issue_categories c ON c.id = i.category_id
-         INNER JOIN users reporter ON reporter.id = i.user_id
-         LEFT JOIN users assignee ON assignee.id = i.assigned_to' . $whereSql . '
+         INNER JOIN users reporter ON reporter.id = i.user_id AND reporter.deleted_at IS NULL
+         LEFT JOIN users assignee ON assignee.id = i.assigned_to AND assignee.deleted_at IS NULL' . $whereSql . '
          GROUP BY month_key, month_label
          ORDER BY month_key ASC'
     );
@@ -317,8 +319,8 @@ function admin_fetch_report_summary(array $filters = []): array
             'SELECT i.priority, COUNT(*) AS issue_count
              FROM issues i
              INNER JOIN issue_categories c ON c.id = i.category_id
-             INNER JOIN users reporter ON reporter.id = i.user_id
-             LEFT JOIN users assignee ON assignee.id = i.assigned_to' . $whereSql . '
+             INNER JOIN users reporter ON reporter.id = i.user_id AND reporter.deleted_at IS NULL
+             LEFT JOIN users assignee ON assignee.id = i.assigned_to AND assignee.deleted_at IS NULL' . $whereSql . '
              GROUP BY i.priority
              ORDER BY issue_count DESC, i.priority ASC'
         );
@@ -336,8 +338,8 @@ function admin_fetch_report_summary(array $filters = []): array
             AVG(CASE WHEN i.resolved_at IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, i.created_at, i.resolved_at) END) AS avg_resolution_minutes
          FROM issues i
          INNER JOIN issue_categories c ON c.id = i.category_id
-         INNER JOIN users reporter ON reporter.id = i.user_id
-         INNER JOIN users assignee ON assignee.id = i.assigned_to' . $whereSql . '
+         INNER JOIN users reporter ON reporter.id = i.user_id AND reporter.deleted_at IS NULL
+         INNER JOIN users assignee ON assignee.id = i.assigned_to AND assignee.deleted_at IS NULL' . $whereSql . '
          GROUP BY assignee.id, assignee.full_name, assignee.email
          ORDER BY assigned_count DESC, assignee.full_name ASC
          LIMIT 10'
@@ -372,6 +374,14 @@ function admin_fetch_users(array $filters = [], int $page = 1, int $perPage = 15
     $conditions = [];
     $params = [];
 
+    $deletedFilter = trim((string) ($filters['deleted'] ?? ''));
+
+    if ($deletedFilter === '1') {
+        $conditions[] = 'u.deleted_at IS NOT NULL';
+    } elseif ($deletedFilter !== 'all') {
+        $conditions[] = 'u.deleted_at IS NULL';
+    }
+
     if (!empty($filters['role'])) {
         $conditions[] = 'r.name = :role';
         $params['role'] = trim((string) $filters['role']);
@@ -399,10 +409,11 @@ function admin_fetch_users(array $filters = [], int $page = 1, int $perPage = 15
          FROM users u
          INNER JOIN roles r ON r.id = u.role_id
          LEFT JOIN citizen_profiles cp ON cp.user_id = u.id
-         LEFT JOIN staff_profiles sp ON sp.user_id = u.id';
+         LEFT JOIN staff_profiles sp ON sp.user_id = u.id
+         WHERE 1=1';
 
     if ($conditions) {
-        $sql .= ' WHERE ' . implode(' AND ', $conditions);
+        $sql .= ' AND ' . implode(' AND ', $conditions);
     }
 
     $sql .= ' ORDER BY u.is_active DESC, r.name ASC, u.full_name ASC';
@@ -412,10 +423,11 @@ function admin_fetch_users(array $filters = [], int $page = 1, int $perPage = 15
          FROM users u
          INNER JOIN roles r ON r.id = u.role_id
          LEFT JOIN citizen_profiles cp ON cp.user_id = u.id
-         LEFT JOIN staff_profiles sp ON sp.user_id = u.id';
+         LEFT JOIN staff_profiles sp ON sp.user_id = u.id
+         WHERE 1=1';
 
     if ($conditions) {
-        $countSql .= ' WHERE ' . implode(' AND ', $conditions);
+        $countSql .= ' AND ' . implode(' AND ', $conditions);
     }
 
     $countStmt = db()->prepare($countSql);
@@ -536,9 +548,10 @@ function admin_fetch_global_search(string $term, int $limit = 50): array
             i.created_at AS created_at
         FROM issues i
         INNER JOIN issue_categories c ON c.id = i.category_id
-        LEFT JOIN users assignee ON assignee.id = i.assigned_to
-        INNER JOIN users reporter ON reporter.id = i.user_id
-        WHERE i.ticket_number LIKE :issue_ticket
+          LEFT JOIN users assignee ON assignee.id = i.assigned_to AND assignee.deleted_at IS NULL
+          INNER JOIN users reporter ON reporter.id = i.user_id AND reporter.deleted_at IS NULL
+          WHERE i.deleted_at IS NULL
+             AND (i.ticket_number LIKE :issue_ticket
            OR i.title LIKE :issue_title
            OR i.description LIKE :issue_description
            OR i.location LIKE :issue_location
@@ -546,7 +559,7 @@ function admin_fetch_global_search(string $term, int $limit = 50): array
            OR reporter.full_name LIKE :issue_owner
            OR reporter.email LIKE :issue_owner_email
            OR assignee.full_name LIKE :issue_assignee
-           " . ($hasResolutionNotesColumn ? "OR i.resolution_notes LIKE :issue_notes" : '') . "
+              " . ($hasResolutionNotesColumn ? "OR i.resolution_notes LIKE :issue_notes" : '') . ")
         UNION ALL
         SELECT
             'comment' AS result_type,
@@ -561,11 +574,11 @@ function admin_fetch_global_search(string $term, int $limit = 50): array
             assignee.full_name AS assigned_label,
             ic.created_at AS created_at
         FROM issue_comments ic
-        INNER JOIN issues i ON i.id = ic.issue_id
+        INNER JOIN issues i ON i.id = ic.issue_id AND i.deleted_at IS NULL
         INNER JOIN issue_categories c ON c.id = i.category_id
-        INNER JOIN users commenter ON commenter.id = ic.user_id
-        LEFT JOIN users assignee ON assignee.id = i.assigned_to
-        WHERE ic.comment LIKE :comment_search
+        INNER JOIN users commenter ON commenter.id = ic.user_id AND commenter.deleted_at IS NULL
+        LEFT JOIN users assignee ON assignee.id = i.assigned_to AND assignee.deleted_at IS NULL
+        WHERE ic.deleted_at IS NULL AND ic.comment LIKE :comment_search
         UNION ALL
         SELECT
             'user' AS result_type,
@@ -579,11 +592,11 @@ function admin_fetch_global_search(string $term, int $limit = 50): array
             u.full_name AS owner_label,
             NULL AS assigned_label,
             u.created_at AS created_at
-        FROM users u
+          FROM users u
         INNER JOIN roles r ON r.id = u.role_id
-        WHERE u.full_name LIKE :user_full_name
+          WHERE u.deleted_at IS NULL AND (u.full_name LIKE :user_full_name
            OR u.email LIKE :user_email
-           OR u.division LIKE :user_division
+              OR u.division LIKE :user_division)
     ) AS search_results
     ORDER BY created_at DESC, result_type ASC, primary_label ASC
     LIMIT :limit";

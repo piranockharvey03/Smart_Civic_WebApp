@@ -18,6 +18,7 @@ $filters = [
     'date_from' => trim((string) ($_GET['date_from'] ?? '')),
     'date_to' => trim((string) ($_GET['date_to'] ?? '')),
     'location' => trim((string) ($_GET['location'] ?? '')),
+    'deleted' => trim((string) ($_GET['deleted'] ?? '')),
 ];
 
 $issuesPage = issue_fetch_management_issue_page($filters, $page, $perPage);
@@ -142,6 +143,14 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         <label class="form-label" for="location">Location</label>
                         <input type="text" class="form-control" id="location" name="location" value="<?= e($filters['location']) ?>" placeholder="Division or area">
                     </div>
+                    <div class="col-lg-2 col-md-6">
+                        <label class="form-label" for="deleted">Trash</label>
+                        <select class="form-select" id="deleted" name="deleted">
+                            <option value="">Active only</option>
+                            <option value="1" <?= $filters['deleted'] === '1' ? 'selected' : '' ?>>Deleted</option>
+                            <option value="all" <?= $filters['deleted'] === 'all' ? 'selected' : '' ?>>All</option>
+                        </select>
+                    </div>
                     <div class="col-lg-2 d-grid">
                         <button type="submit" class="btn btn-primary">Filter</button>
                     </div>
@@ -185,7 +194,18 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                         <td><?= e($issue['location']) ?></td>
                                         <td><?= e($issue['assigned_name'] ?? 'Unassigned') ?></td>
                                         <td><?= e(date('d M Y, H:i', strtotime((string) $issue['updated_at']))) ?></td>
-                                        <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="<?= e(app_url('issues/view.php?id=' . (int) $issue['id'])) ?>">Open</a></td>
+                                        <td class="text-end">
+                                            <div class="d-flex gap-2 justify-content-end flex-wrap">
+                                                <a class="btn btn-sm btn-outline-primary" href="<?= e(app_url('issues/view.php?id=' . (int) $issue['id'])) ?>">Open</a>
+                                                <form method="post" action="<?= e(app_url('admin/trash.php')) ?>" onsubmit="return confirm('Move this issue to trash?');">
+                                                    <?= csrf_field() ?>
+                                                    <input type="hidden" name="record_type" value="issue">
+                                                    <input type="hidden" name="record_id" value="<?= e((string) $issue['id']) ?>">
+                                                    <input type="hidden" name="action" value="trash">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">Trash</button>
+                                                </form>
+                                            </div>
+                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -271,6 +291,10 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
+
+                <div class="mt-4 d-flex justify-content-end">
+                    <a class="btn btn-outline-secondary" href="<?= e(app_url('admin/trash.php')) ?>">Open Trash Center</a>
+                </div>
             </div>
         </div>
     </div>

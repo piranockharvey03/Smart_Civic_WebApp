@@ -96,6 +96,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirect(app_url('issues/view.php?' . http_build_query(array_merge($baseQuery, ['timeline_page' => $timelinePage]))));
             }
 
+            if ($action === 'delete_comment') {
+                if (!$canAccessConversation) {
+                    throw new RuntimeException('You do not have permission to manage comments on this issue.');
+                }
+
+                $commentId = isset($_POST['comment_id']) ? (int) $_POST['comment_id'] : 0;
+                if ($commentId <= 0) {
+                    throw new RuntimeException('Invalid comment specified.');
+                }
+
+                $stmt = db()->prepare('SELECT id, issue_id, user_id FROM issue_comments WHERE id = :id AND deleted_at IS NULL');
+                $stmt->execute(['id' => $commentId]);
+                $commentRow = $stmt->fetch();
+
+                if (!$commentRow) {
+                    throw new RuntimeException('Comment not found or already deleted.');
+                }
+
+                if ((int) $commentRow['issue_id'] !== (int) $issue['id']) {
+                    throw new RuntimeException('Comment does not belong to this issue.');
+                }
+
+                $isOwner = isset($user['id']) && (int) $user['id'] === (int) $commentRow['user_id'];
+                if (!in_array($role, ['admin', 'staff'], true) && !$isOwner) {
+                    throw new RuntimeException('You are not authorized to delete this comment.');
+                }
+
+                issue_soft_delete_comment($commentId, (int) $user['id']);
+                app_log_system_event('recovery', 'warning', 'Comment moved to trash', ['comment_id' => $commentId, 'issue_id' => $issue['id']], (int) $user['id'], __FUNCTION__);
+                issue_record_issue_log((int) $issue['id'], (int) $user['id'], 'comment_deleted', 'Comment moved to trash.');
+
+                set_flash('success', 'Comment moved to trash.');
+                redirect(app_url('issues/view.php?' . http_build_query(array_merge($baseQuery, ['timeline_page' => $timelinePage]))));
+            }
+
             if ($action === 'confirm_resolution') {
                 if ($role !== 'citizen') {
                     throw new RuntimeException('Only citizens can confirm a resolution.');
@@ -287,7 +322,20 @@ if (is_logged_in()) {
                                             <?= e(issue_log_action_label((string) ($entry['action'] ?? 'event'))) ?>
                                         <?php endif; ?>
                                     </div>
-                                    <div class="small text-muted"><?= e(date('d M Y, H:i', strtotime((string) $entry['created_at']))) ?></div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="small text-muted"><?= e(date('d M Y, H:i', strtotime((string) $entry['created_at']))) ?></div>
+                                        <?php if (($entry['entry_type'] ?? '') === 'comment') : ?>
+                                            <?php $canDeleteComment = isset($role) && (in_array($role, ['admin', 'staff'], true) || (isset($user['id']) && (int) $user['id'] === (int) ($entry['user_id'] ?? 0))); ?>
+                                            <?php if ($canDeleteComment) : ?>
+                                                <form method="post" action="" onsubmit="return confirm('Move this comment to trash?');" class="mb-0">
+                                                    <?= csrf_field() ?>
+                                                    <input type="hidden" name="action" value="delete_comment">
+                                                    <input type="hidden" name="comment_id" value="<?= e((string) ($entry['entry_id'] ?? '')) ?>">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                                </form>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                                 <div><?= nl2br(e((string) ($entry['message'] ?? $entry['description'] ?? ''))) ?></div>
                             </div>
