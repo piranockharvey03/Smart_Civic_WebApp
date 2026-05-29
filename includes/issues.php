@@ -66,6 +66,39 @@ function issue_priority_badge_class(string $priority): string
     };
 }
 
+function issue_normalize_coordinate(mixed $value): ?float
+{
+    if ($value === null) {
+        return null;
+    }
+
+    $value = trim((string) $value);
+    if ($value === '' || !is_numeric($value)) {
+        return null;
+    }
+
+    return (float) $value;
+}
+
+function issue_is_valid_latitude(?float $latitude): bool
+{
+    return $latitude !== null && $latitude >= -90 && $latitude <= 90;
+}
+
+function issue_is_valid_longitude(?float $longitude): bool
+{
+    return $longitude !== null && $longitude >= -180 && $longitude <= 180;
+}
+
+function issue_map_status_tier(string $status): string
+{
+    return match ($status) {
+        'resolved', 'closed' => 'success',
+        'in_progress', 'assigned', 'under_review', 'pending' => 'warning',
+        default => 'danger',
+    };
+}
+
 function issue_issue_column_exists(string $column): bool
 {
     static $cache = [];
@@ -243,6 +276,18 @@ function issue_build_location(array $data): string
     return $division !== '' ? $division : $location;
 }
 
+function issue_build_display_address(array $data): string
+{
+    $address = trim((string) ($data['address'] ?? ''));
+    $location = trim((string) ($data['location'] ?? ''));
+
+    if ($address !== '') {
+        return $address;
+    }
+
+    return $location;
+}
+
 function issue_validate_upload(array $file, array &$errors): ?string
 {
     if (($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
@@ -323,6 +368,9 @@ function issue_create_report(int $userId, array $data, array $file, array &$erro
     $description = trim((string) ($data['description'] ?? ''));
     $division = trim((string) ($data['division'] ?? ''));
     $location = trim((string) ($data['location'] ?? ''));
+    $address = trim((string) ($data['address'] ?? ''));
+    $latitude = issue_normalize_coordinate($data['latitude'] ?? null);
+    $longitude = issue_normalize_coordinate($data['longitude'] ?? null);
 
     if ($categoryId < 1) {
         $errors[] = 'Please select an issue category.';
@@ -342,6 +390,14 @@ function issue_create_report(int $userId, array $data, array $file, array &$erro
 
     if ($location === '' || mb_strlen($location) < 3) {
         $errors[] = 'Please provide a brief location description.';
+    }
+
+    if (($latitude !== null || $longitude !== null) && (!issue_is_valid_latitude($latitude) || !issue_is_valid_longitude($longitude))) {
+        $errors[] = 'Please provide valid latitude and longitude coordinates.';
+    }
+
+    if ($address !== '' && mb_strlen($address) > 255) {
+        $errors[] = 'The address must be 255 characters or fewer.';
     }
 
     $categoryStmt = db()->prepare('SELECT id FROM issue_categories WHERE id = :id LIMIT 1');
@@ -369,8 +425,8 @@ function issue_create_report(int $userId, array $data, array $file, array &$erro
     db()->beginTransaction();
 
     try {
-        $columns = ['ticket_number', 'user_id', 'category_id', 'title', 'description', 'image', 'location', 'status', 'assigned_to'];
-        $placeholders = [':ticket_number', ':user_id', ':category_id', ':title', ':description', ':image', ':location', ':status', 'NULL'];
+        $columns = ['ticket_number', 'user_id', 'category_id', 'title', 'description', 'image', 'location', 'latitude', 'longitude', 'address', 'division', 'status', 'assigned_to'];
+        $placeholders = [':ticket_number', ':user_id', ':category_id', ':title', ':description', ':image', ':location', ':latitude', ':longitude', ':address', ':division', ':status', 'NULL'];
         $params = [
             'ticket_number' => $temporaryTicket,
             'user_id' => $userId,
@@ -379,6 +435,10 @@ function issue_create_report(int $userId, array $data, array $file, array &$erro
             'description' => $description,
             'image' => $imageName,
             'location' => $locationText,
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'address' => $address !== '' ? $address : null,
+            'division' => $division !== '' ? $division : null,
             'status' => 'submitted',
         ];
 
@@ -577,8 +637,8 @@ function issue_fetch_management_issues(array $filters = []): array
             assignee.email AS assigned_email
          FROM issues i
          INNER JOIN issue_categories c ON c.id = i.category_id
-         INNER JOIN users reporter ON reporter.id = i.user_id AND reporter.deleted_at IS NULL
-         LEFT JOIN users assignee ON assignee.id = i.assigned_to AND assignee.deleted_at IS NULL
+         INNER JOIN users reporter ON reporter.id = i.user_id' . sql_table_deleted_cond('users', 'reporter') . '
+         LEFT JOIN users assignee ON assignee.id = i.assigned_to' . sql_table_deleted_cond('users', 'assignee') . '
          WHERE ' . $deletedClause;
 
     if ($conditions) {
@@ -656,8 +716,8 @@ function issue_fetch_management_issue_page(array $filters = [], int $page = 1, i
         'SELECT COUNT(*) AS total
          FROM issues i
          INNER JOIN issue_categories c ON c.id = i.category_id
-            INNER JOIN users reporter ON reporter.id = i.user_id AND reporter.deleted_at IS NULL
-            LEFT JOIN users assignee ON assignee.id = i.assigned_to AND assignee.deleted_at IS NULL
+            INNER JOIN users reporter ON reporter.id = i.user_id' . sql_table_deleted_cond('users', 'reporter') . '
+            LEFT JOIN users assignee ON assignee.id = i.assigned_to' . sql_table_deleted_cond('users', 'assignee') . '
             WHERE ' . $deletedClause . ($whereSql ? ' AND ' . ltrim($whereSql, ' WHERE ') : '')
     );
     $countStmt->execute($params);
@@ -673,8 +733,8 @@ function issue_fetch_management_issue_page(array $filters = [], int $page = 1, i
             assignee.email AS assigned_email
          FROM issues i
          INNER JOIN issue_categories c ON c.id = i.category_id
-         INNER JOIN users reporter ON reporter.id = i.user_id AND reporter.deleted_at IS NULL
-         LEFT JOIN users assignee ON assignee.id = i.assigned_to AND assignee.deleted_at IS NULL
+         INNER JOIN users reporter ON reporter.id = i.user_id' . sql_table_deleted_cond('users', 'reporter') . '
+         LEFT JOIN users assignee ON assignee.id = i.assigned_to' . sql_table_deleted_cond('users', 'assignee') . '
          WHERE ' . $deletedClause .
         ($whereSql ? ' AND ' . ltrim($whereSql, ' WHERE ') : '') .
         ' ORDER BY i.updated_at DESC, i.created_at DESC, i.id DESC
@@ -699,6 +759,110 @@ function issue_fetch_management_issue_page(array $filters = [], int $page = 1, i
     ];
 }
 
+function issue_fetch_map_issues(array $filters = [], ?int $viewerId = null, ?string $viewerRole = null, int $limit = 1000): array
+{
+    $limit = max(1, min(2000, $limit));
+    $conditions = ['i.deleted_at IS NULL', 'i.latitude IS NOT NULL', 'i.longitude IS NOT NULL'];
+    $params = [];
+    $hasPriorityColumn = issue_issue_column_exists('priority');
+
+    if ($viewerRole === 'staff' && $viewerId !== null) {
+        $conditions[] = '(i.assigned_to = :viewer_id OR i.user_id = :viewer_id)';
+        $params['viewer_id'] = $viewerId;
+    } elseif ($viewerRole === 'citizen' && $viewerId !== null) {
+        $conditions[] = 'i.user_id = :viewer_id';
+        $params['viewer_id'] = $viewerId;
+    }
+
+    if (!empty($filters['status'])) {
+        $conditions[] = 'i.status = :status';
+        $params['status'] = trim((string) $filters['status']);
+    }
+
+    if ($hasPriorityColumn && !empty($filters['priority'])) {
+        $conditions[] = 'i.priority = :priority';
+        $params['priority'] = trim((string) $filters['priority']);
+    }
+
+    if (!empty($filters['category_id'])) {
+        $conditions[] = 'i.category_id = :category_id';
+        $params['category_id'] = (int) $filters['category_id'];
+    }
+
+    if (!empty($filters['division'])) {
+        $conditions[] = 'COALESCE(NULLIF(TRIM(i.division), \'\'), NULLIF(TRIM(reporter.division), \'\')) = :division';
+        $params['division'] = trim((string) $filters['division']);
+    }
+
+    if (!empty($filters['query'])) {
+        $conditions[] = '(i.ticket_number LIKE :query OR i.title LIKE :query OR i.location LIKE :query OR i.address LIKE :query)';
+        $params['query'] = '%' . trim((string) $filters['query']) . '%';
+    }
+
+    $sql =
+        'SELECT i.id, i.ticket_number, i.title, i.description, i.status, ' . ($hasPriorityColumn ? 'i.priority' : "'medium' AS priority") . ',
+            i.latitude, i.longitude, i.address, i.location, i.division, i.created_at, i.updated_at,
+            c.name AS category_name,
+            reporter.full_name AS reporter_name,
+            reporter.email AS reporter_email,
+            reporter.division AS reporter_division,
+            assignee.full_name AS assigned_name
+         FROM issues i
+         INNER JOIN issue_categories c ON c.id = i.category_id
+         INNER JOIN users reporter ON reporter.id = i.user_id' . sql_table_deleted_cond('users', 'reporter') . '
+         LEFT JOIN users assignee ON assignee.id = i.assigned_to' . sql_table_deleted_cond('users', 'assignee') . '
+         WHERE ' . implode(' AND ', $conditions) . '
+         ORDER BY i.updated_at DESC, i.created_at DESC, i.id DESC
+         LIMIT :limit';
+
+    $stmt = db()->prepare($sql);
+    foreach ($params as $key => $value) {
+        $stmt->bindValue(':' . $key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+    }
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->execute();
+
+    return $stmt->fetchAll();
+}
+
+function issue_fetch_division_breakdown(?int $viewerId = null, ?string $viewerRole = null, int $limit = 10): array
+{
+    $limit = max(1, min(20, $limit));
+    $conditions = ['i.deleted_at IS NULL'];
+    $params = [];
+
+    if ($viewerRole === 'staff' && $viewerId !== null) {
+        $conditions[] = '(i.assigned_to = :viewer_id OR i.user_id = :viewer_id)';
+        $params['viewer_id'] = $viewerId;
+    } elseif ($viewerRole === 'citizen' && $viewerId !== null) {
+        $conditions[] = 'i.user_id = :viewer_id';
+        $params['viewer_id'] = $viewerId;
+    }
+
+    $sql =
+        'SELECT
+            COALESCE(NULLIF(TRIM(i.division), \'\'), NULLIF(TRIM(reporter.division), \'\'), \'Unknown\') AS division_name,
+            COUNT(*) AS issue_count,
+            SUM(CASE WHEN i.status IN (\'resolved\', \'closed\') THEN 1 ELSE 0 END) AS resolved_count,
+            SUM(CASE WHEN i.status IN (\'submitted\', \'under_review\', \'assigned\', \'in_progress\', \'pending\', \'reopened\') THEN 1 ELSE 0 END) AS open_count,
+            AVG(CASE WHEN i.resolved_at IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, i.created_at, i.resolved_at) END) AS avg_resolution_minutes
+         FROM issues i
+         INNER JOIN users reporter ON reporter.id = i.user_id' . sql_table_deleted_cond('users', 'reporter') . '
+         WHERE ' . implode(' AND ', $conditions) . '
+         GROUP BY division_name
+         ORDER BY issue_count DESC, division_name ASC
+         LIMIT :limit';
+
+    $stmt = db()->prepare($sql);
+    foreach ($params as $key => $value) {
+        $stmt->bindValue(':' . $key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+    }
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->execute();
+
+    return $stmt->fetchAll();
+}
+
 function issue_fetch_issue_by_id(int $issueId): ?array
 {
      $stmt = db()->prepare(
@@ -709,12 +873,9 @@ function issue_fetch_issue_by_id(int $issueId): ?array
                 assignee.full_name AS assigned_name,
                 assignee.email AS assigned_email
             FROM issues i
-            INNER JOIN issue_categories c ON c.id = i.category_id'
-                . sql_table_deleted_cond('users', 'reporter') . '
-            INNER JOIN users reporter ON reporter.id = i.user_id'
-                . sql_table_deleted_cond('users', 'reporter') . '
-            LEFT JOIN users assignee ON assignee.id = i.assigned_to'
-                . sql_table_deleted_cond('users', 'assignee') . '
+            INNER JOIN issue_categories c ON c.id = i.category_id
+            INNER JOIN users reporter ON reporter.id = i.user_id' . sql_table_deleted_cond('users', 'reporter') . '
+            LEFT JOIN users assignee ON assignee.id = i.assigned_to' . sql_table_deleted_cond('users', 'assignee') . '
             WHERE i.id = :id AND i.deleted_at IS NULL
             LIMIT 1'
      );
@@ -736,8 +897,8 @@ function issue_fetch_issue_by_ticket(string $ticketNumber): ?array
             assignee.email AS assigned_email
          FROM issues i
          INNER JOIN issue_categories c ON c.id = i.category_id
-         INNER JOIN users reporter ON reporter.id = i.user_id AND reporter.deleted_at IS NULL
-         LEFT JOIN users assignee ON assignee.id = i.assigned_to AND assignee.deleted_at IS NULL
+         INNER JOIN users reporter ON reporter.id = i.user_id' . sql_table_deleted_cond('users', 'reporter') . '
+         LEFT JOIN users assignee ON assignee.id = i.assigned_to' . sql_table_deleted_cond('users', 'assignee') . '
          WHERE i.ticket_number = :ticket_number AND i.deleted_at IS NULL
          LIMIT 1'
     );
@@ -753,7 +914,7 @@ function issue_fetch_comments(int $issueId): array
     $stmt = db()->prepare(
         'SELECT ic.*, u.full_name AS author_name, r.name AS author_role
          FROM issue_comments ic
-         INNER JOIN users u ON u.id = ic.user_id AND u.deleted_at IS NULL
+        INNER JOIN users u ON u.id = ic.user_id' . sql_table_deleted_cond('users', 'u') . '
          INNER JOIN roles r ON r.id = u.role_id
          WHERE ic.issue_id = :issue_id AND ic.deleted_at IS NULL
          ORDER BY ic.created_at ASC, ic.id ASC'
@@ -769,7 +930,7 @@ function issue_fetch_staff_members(): array
         "SELECT u.id, u.full_name, u.email, u.division, r.name AS role_name
          FROM users u
          INNER JOIN roles r ON r.id = u.role_id
-         WHERE u.is_active = 1 AND u.deleted_at IS NULL AND r.name IN ('staff', 'admin')
+         WHERE u.is_active = 1" . sql_table_deleted_cond('users', 'u') . " AND r.name IN ('staff', 'admin')
          ORDER BY r.name ASC, u.full_name ASC"
     );
 
@@ -852,7 +1013,7 @@ function issue_fetch_issue_timeline(int $issueId, int $page = 1, int $perPage = 
                 NULL AS action,
                 NULL AS description
             FROM issue_comments ic
-            INNER JOIN users u ON u.id = ic.user_id AND u.deleted_at IS NULL
+            INNER JOIN users u ON u.id = ic.user_id" . sql_table_deleted_cond('users', 'u') . "
             INNER JOIN roles r ON r.id = u.role_id
             WHERE ic.issue_id = :issue_id_one AND ic.deleted_at IS NULL
             UNION ALL
@@ -869,7 +1030,7 @@ function issue_fetch_issue_timeline(int $issueId, int $page = 1, int $perPage = 
                 il.action,
                 il.description
             FROM issue_logs il
-            INNER JOIN users u ON u.id = il.user_id AND u.deleted_at IS NULL
+            INNER JOIN users u ON u.id = il.user_id" . sql_table_deleted_cond('users', 'u') . "
             INNER JOIN roles r ON r.id = u.role_id
                 WHERE il.issue_id = :issue_id_two
          ) AS timeline
@@ -896,7 +1057,7 @@ function issue_fetch_issue_timeline(int $issueId, int $page = 1, int $perPage = 
                 NULL AS action,
                 NULL AS description
             FROM issue_comments ic
-            INNER JOIN users u ON u.id = ic.user_id AND u.deleted_at IS NULL
+            INNER JOIN users u ON u.id = ic.user_id" . sql_table_deleted_cond('users', 'u') . "
             INNER JOIN roles r ON r.id = u.role_id
                 WHERE ic.issue_id = :issue_id_one AND ic.deleted_at IS NULL
             ORDER BY ic.created_at DESC, ic.id DESC
@@ -938,25 +1099,25 @@ function issue_fetch_recent_activity(?int $userId = null, int $limit = 5): array
 
     if ($hasLogsTable) {
         $stmt = db()->prepare(
-            "SELECT t.* FROM (
-                 SELECT il.id AS entry_id, il.issue_id, il.user_id, il.action, il.description, il.created_at,
-                     i.ticket_number, i.title, i.status, $prioritySelect,
-                   u.full_name AS actor_name, r.name AS actor_role
-            FROM issue_logs il
-              INNER JOIN issues i ON i.id = il.issue_id AND i.deleted_at IS NULL
-              INNER JOIN users u ON u.id = il.user_id AND u.deleted_at IS NULL
-                 INNER JOIN roles r ON r.id = u.role_id" . $userFilterLogs . "
-            UNION ALL
-                 SELECT ic.id AS entry_id, ic.issue_id, ic.user_id, 'comment_added' AS action, ic.comment AS description, ic.created_at,
-                     i.ticket_number, i.title, i.status, $prioritySelect,
-                   u.full_name AS actor_name, r.name AS actor_role
-            FROM issue_comments ic
-              INNER JOIN issues i ON i.id = ic.issue_id AND i.deleted_at IS NULL
-              INNER JOIN users u ON u.id = ic.user_id AND u.deleted_at IS NULL
-                 INNER JOIN roles r ON r.id = u.role_id" . $userFilterComments . "
-        ) AS t
-        ORDER BY t.created_at DESC, t.entry_id DESC
-        LIMIT :limit"
+                        "SELECT t.* FROM (
+                                 SELECT il.id AS entry_id, il.issue_id, il.user_id, il.action, il.description, il.created_at,
+                                         i.ticket_number, i.title, i.status, $prioritySelect,
+                                     u.full_name AS actor_name, r.name AS actor_role
+                        FROM issue_logs il
+                            INNER JOIN issues i ON i.id = il.issue_id AND i.deleted_at IS NULL
+                            INNER JOIN users u ON u.id = il.user_id" . sql_table_deleted_cond('users', 'u') . "
+                                 INNER JOIN roles r ON r.id = u.role_id" . $userFilterLogs . "
+                        UNION ALL
+                                 SELECT ic.id AS entry_id, ic.issue_id, ic.user_id, 'comment_added' AS action, ic.comment AS description, ic.created_at,
+                                         i.ticket_number, i.title, i.status, $prioritySelect,
+                                     u.full_name AS actor_name, r.name AS actor_role
+                        FROM issue_comments ic
+                            INNER JOIN issues i ON i.id = ic.issue_id AND i.deleted_at IS NULL
+                            INNER JOIN users u ON u.id = ic.user_id" . sql_table_deleted_cond('users', 'u') . "
+                                 INNER JOIN roles r ON r.id = u.role_id" . $userFilterComments . "
+                ) AS t
+                ORDER BY t.created_at DESC, t.entry_id DESC
+                LIMIT :limit"
         );
         foreach ($params as $key => $value) {
             $stmt->bindValue(':' . $key, $value, PDO::PARAM_INT);
@@ -964,15 +1125,15 @@ function issue_fetch_recent_activity(?int $userId = null, int $limit = 5): array
         $stmt->execute();
     } else {
         $stmt = db()->prepare(
-            "SELECT ic.id AS entry_id, ic.issue_id, ic.user_id, 'comment_added' AS action, ic.comment AS description, ic.created_at,
-                   i.ticket_number, i.title, i.status, $prioritySelect,
-                   u.full_name AS actor_name, r.name AS actor_role
-             FROM issue_comments ic
-               INNER JOIN issues i ON i.id = ic.issue_id AND i.deleted_at IS NULL
-               INNER JOIN users u ON u.id = ic.user_id AND u.deleted_at IS NULL
-             INNER JOIN roles r ON r.id = u.role_id" . $userFilterComments . "
-             ORDER BY ic.created_at DESC, ic.id DESC
-             LIMIT :limit"
+                        "SELECT ic.id AS entry_id, ic.issue_id, ic.user_id, 'comment_added' AS action, ic.comment AS description, ic.created_at,
+                                     i.ticket_number, i.title, i.status, $prioritySelect,
+                                     u.full_name AS actor_name, r.name AS actor_role
+                         FROM issue_comments ic
+                             INNER JOIN issues i ON i.id = ic.issue_id AND i.deleted_at IS NULL
+                             INNER JOIN users u ON u.id = ic.user_id" . sql_table_deleted_cond('users', 'u') . "
+                         INNER JOIN roles r ON r.id = u.role_id" . $userFilterComments . "
+                         ORDER BY ic.created_at DESC, ic.id DESC
+                         LIMIT :limit"
         );
         foreach ($params as $key => $value) {
             $stmt->bindValue(':' . $key, $value, PDO::PARAM_INT);
@@ -988,15 +1149,15 @@ function issue_fetch_latest_staff_responses(int $userId, int $limit = 5): array
     $prioritySelect = issue_issue_column_exists('priority') ? 'i.priority' : 'NULL AS priority';
 
     $stmt = db()->prepare(
-        "SELECT ic.id, ic.comment, ic.created_at, i.ticket_number, i.title, i.status, $prioritySelect,
-                u.full_name AS author_name, r.name AS author_role
-         FROM issue_comments ic
-            INNER JOIN issues i ON i.id = ic.issue_id AND i.deleted_at IS NULL
-            INNER JOIN users u ON u.id = ic.user_id AND u.deleted_at IS NULL
-         INNER JOIN roles r ON r.id = u.role_id
-            WHERE i.user_id = :user_id AND i.deleted_at IS NULL AND r.name IN ('staff', 'admin')
-         ORDER BY ic.created_at DESC, ic.id DESC
-         LIMIT :limit"
+          "SELECT ic.id, ic.comment, ic.created_at, i.ticket_number, i.title, i.status, $prioritySelect,
+                     u.full_name AS author_name, r.name AS author_role
+            FROM issue_comments ic
+                INNER JOIN issues i ON i.id = ic.issue_id AND i.deleted_at IS NULL
+                INNER JOIN users u ON u.id = ic.user_id" . sql_table_deleted_cond('users', 'u') . "
+            INNER JOIN roles r ON r.id = u.role_id
+                WHERE i.user_id = :user_id AND i.deleted_at IS NULL AND r.name IN ('staff', 'admin')
+            ORDER BY ic.created_at DESC, ic.id DESC
+            LIMIT :limit"
     );
     $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
     $stmt->bindValue(':limit', max(1, min(20, $limit)), PDO::PARAM_INT);
@@ -1020,7 +1181,7 @@ function issue_fetch_staff_workload(): array
          FROM users u
          INNER JOIN roles r ON r.id = u.role_id
             LEFT JOIN issues i ON i.assigned_to = u.id AND i.deleted_at IS NULL
-            WHERE u.is_active = 1 AND u.deleted_at IS NULL AND r.name IN ('staff', 'admin')
+                WHERE u.is_active = 1" . sql_table_deleted_cond('users', 'u') . " AND r.name IN ('staff', 'admin')
          GROUP BY u.id, u.full_name, u.email
          ORDER BY total_assigned DESC, u.full_name ASC"
     );

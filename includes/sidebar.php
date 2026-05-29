@@ -22,6 +22,11 @@ $issueQueueLink = match ($role) {
     default => app_url('citizen/report-issue.php'),
 };
 
+$issueMapLink = match ($role) {
+    'admin', 'staff' => app_url('issues/map.php'),
+    default => null,
+};
+
 $sidebarLogoUrl = app_url('KCCA.png');
 ?>
 <div class="offcanvas-lg offcanvas-start app-sidebar" tabindex="-1" id="appSidebar" aria-labelledby="appSidebarLabel">
@@ -48,9 +53,15 @@ $sidebarLogoUrl = app_url('KCCA.png');
                 <?php elseif ($role === 'staff') : ?>
                     <a class="nav-link <?= ($activePage === 'staff-issues') ? 'active' : '' ?>" href="<?= e($issueListLink) ?>">Issue Management</a>
                     <a class="nav-link" href="<?= e($issueQueueLink) ?>">Submitted Queue</a>
+                    <?php if ($issueMapLink) : ?>
+                        <a class="nav-link <?= ($activePage === 'issue-map') ? 'active' : '' ?>" href="<?= e($issueMapLink) ?>">Issue Map</a>
+                    <?php endif; ?>
                 <?php elseif ($role === 'admin') : ?>
                     <a class="nav-link <?= ($activePage === 'admin-issues') ? 'active' : '' ?>" href="<?= e($issueListLink) ?>">Issue Management</a>
                     <a class="nav-link" href="<?= e($issueQueueLink) ?>">Submitted Queue</a>
+                    <?php if ($issueMapLink) : ?>
+                        <a class="nav-link <?= ($activePage === 'issue-map') ? 'active' : '' ?>" href="<?= e($issueMapLink) ?>">Issue Map</a>
+                    <?php endif; ?>
                     <a class="nav-link <?= ($activePage === 'admin-reports') ? 'active' : '' ?>" href="<?= e(app_url('admin/reports.php')) ?>">Reports</a>
                     <a class="nav-link <?= ($activePage === 'admin-analytics') ? 'active' : '' ?>" href="<?= e(app_url('admin/analytics.php')) ?>">Analytics</a>
                     <a class="nav-link <?= ($activePage === 'admin-users') ? 'active' : '' ?>" href="<?= e(app_url('admin/users.php')) ?>">Users</a>

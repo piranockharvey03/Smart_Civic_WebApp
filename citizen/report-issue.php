@@ -12,10 +12,24 @@ $data = [
     'description' => '',
     'division' => '',
     'location' => '',
+    'address' => '',
+    'latitude' => '',
+    'longitude' => '',
 ];
 
 $categories = issue_category_options();
 $divisions = issue_division_options();
+$pageStyles = [
+    'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css',
+    'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css',
+    'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css',
+    app_url('assets/css/maps.css') . '?v=' . filemtime(__DIR__ . '/../assets/css/maps.css'),
+];
+$pageScripts = [
+    'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js',
+    app_url('assets/js/maps/geolocation.js') . '?v=' . filemtime(__DIR__ . '/../assets/js/maps/geolocation.js'),
+    app_url('assets/js/maps/issue-map.js') . '?v=' . filemtime(__DIR__ . '/../assets/js/maps/issue-map.js'),
+];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
@@ -26,6 +40,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $data['description'] = trim((string) ($_POST['description'] ?? ''));
         $data['division'] = trim((string) ($_POST['division'] ?? ''));
         $data['location'] = trim((string) ($_POST['location'] ?? ''));
+        $data['address'] = trim((string) ($_POST['address'] ?? ''));
+        $data['latitude'] = trim((string) ($_POST['latitude'] ?? ''));
+        $data['longitude'] = trim((string) ($_POST['longitude'] ?? ''));
 
         try {
             $result = issue_create_report((int) current_user()['id'], $data, $_FILES['image'] ?? [], $errors);
@@ -111,9 +128,53 @@ $user = current_user();
                             <input type="text" class="form-control" id="location" name="location" value="<?= old('location', $data['location']) ?>" placeholder="Street, landmark, ward, or block" required>
                         </div>
                         <div class="col-md-6">
+                            <label for="address" class="form-label">Address / Landmark</label>
+                            <input type="text" class="form-control" id="address" name="address" value="<?= old('address', $data['address']) ?>" placeholder="Optional address captured from the map picker">
+                        </div>
+                        <div class="col-md-6">
                             <label for="image" class="form-label">Photo Evidence</label>
                             <input type="file" class="form-control" id="image" name="image" accept="image/jpeg,image/png,image/gif,image/webp" required>
                             <div class="upload-note mt-2">Accepted files: JPG, PNG, GIF, WEBP. Maximum size: 5 MB.</div>
+                        </div>
+                    </div>
+
+                    <div class="map-block mt-4 p-3 p-lg-4 border rounded-4" data-map-mode="picker" data-map-center-lat="0.3476" data-map-center-lng="32.5825" data-map-zoom="13">
+                        <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-3">
+                            <div>
+                                <h2 class="h5 mb-1">Capture the Issue Location</h2>
+                                <p class="text-muted mb-0">Use your current GPS location or click the map to place the pin manually.</p>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                                <button type="button" class="btn btn-outline-primary btn-sm" data-geolocate-btn>
+                                    <span class="me-1">Use my location</span>
+                                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true" data-geolocate-spinner></span>
+                                </button>
+                                <div class="small text-muted" data-location-status>Map ready for selection.</div>
+                            </div>
+                        </div>
+                        <div class="row g-2 align-items-end mb-3">
+                            <div class="col-lg-8">
+                                <label for="locationSearch" class="form-label">Search a place</label>
+                                <input type="text" class="form-control" id="locationSearch" placeholder="Search by street, landmark, or area" data-map-search-input>
+                            </div>
+                            <div class="col-lg-4 d-grid">
+                                <button type="button" class="btn btn-outline-secondary" data-map-search-btn>Search location</button>
+                            </div>
+                        </div>
+                        <div class="map-canvas" id="reportIssueMap" aria-label="Issue location picker"></div>
+                        <div class="row g-3 mt-3">
+                            <div class="col-md-4">
+                                <label class="form-label" for="latitude">Latitude</label>
+                                <input type="text" class="form-control" id="latitude" name="latitude" value="<?= old('latitude', $data['latitude']) ?>" readonly>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="longitude">Longitude</label>
+                                <input type="text" class="form-control" id="longitude" name="longitude" value="<?= old('longitude', $data['longitude']) ?>" readonly>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="locationCoordinates">Current Pin</label>
+                                <input type="text" class="form-control" id="locationCoordinates" value="No coordinates selected yet" readonly data-coordinate-display>
+                            </div>
                         </div>
                     </div>
 

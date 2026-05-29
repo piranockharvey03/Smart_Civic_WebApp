@@ -7,11 +7,13 @@ require_role(['admin']);
 
 $filters = admin_normalize_filters($_GET);
 $summary = admin_fetch_report_summary($filters);
+$divisionBreakdown = issue_fetch_division_breakdown(null, 'admin', 8);
 
 [$monthLabels, $monthValues] = admin_json_chart_labels($summary['monthly_trend'], 'month_label', 'issue_count');
 [$categoryLabels, $categoryValues] = admin_json_chart_labels($summary['category_breakdown'], 'name', 'issue_count');
 [$locationLabels, $locationValues] = admin_json_chart_labels($summary['location_breakdown'], 'location', 'issue_count');
 [$priorityLabels, $priorityValues] = admin_json_chart_labels($summary['priority_breakdown'], 'priority', 'issue_count');
+[$divisionLabels, $divisionValues] = admin_json_chart_labels($divisionBreakdown, 'division_name', 'issue_count');
 
 $pageTitle = APP_NAME . ' | Analytics Dashboard';
 $activePage = 'admin-analytics';
@@ -77,6 +79,28 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 <canvas id="locationChart" height="140"></canvas>
             </div>
         </div>
+        <div class="col-lg-8">
+            <div class="app-card bg-white compact-card h-100">
+                <h2 class="h5 mb-3">Division Pressure</h2>
+                <canvas id="divisionChart" height="140"></canvas>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="app-card bg-white compact-card h-100">
+                <h2 class="h5 mb-3">Top Divisions</h2>
+                <div class="d-grid gap-2 compact-stack">
+                    <?php foreach ($divisionBreakdown as $division) : ?>
+                        <div class="border rounded-3 p-3 d-flex justify-content-between align-items-center gap-3">
+                            <div>
+                                <div class="fw-semibold"><?= e($division['division_name']) ?></div>
+                                <div class="small text-muted">Open: <?= e((string) $division['open_count']) ?> | Resolved: <?= e((string) $division['resolved_count']) ?></div>
+                            </div>
+                            <span class="issue-badge secondary"><?= e((string) $division['issue_count']) ?></span>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
         <div class="col-12">
             <div class="app-card bg-white compact-card">
                 <h2 class="h5 mb-3">Top Staff Performance</h2>
@@ -117,6 +141,8 @@ const priorityLabels = <?= json_encode($priorityLabels, JSON_UNESCAPED_SLASHES) 
 const priorityValues = <?= json_encode($priorityValues, JSON_UNESCAPED_SLASHES) ?>;
 const locationLabels = <?= json_encode($locationLabels, JSON_UNESCAPED_SLASHES) ?>;
 const locationValues = <?= json_encode($locationValues, JSON_UNESCAPED_SLASHES) ?>;
+const divisionLabels = <?= json_encode($divisionLabels, JSON_UNESCAPED_SLASHES) ?>;
+const divisionValues = <?= json_encode($divisionValues, JSON_UNESCAPED_SLASHES) ?>;
 
 const themeColors = {
     green: 'rgba(31, 122, 61, 0.85)',
@@ -149,6 +175,12 @@ new Chart(document.getElementById('priorityChart'), {
 new Chart(document.getElementById('locationChart'), {
     type: 'bar',
     data: { labels: locationLabels, datasets: [{ label: 'Issues', data: locationValues, backgroundColor: themeColors.green }] },
+    options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+});
+
+new Chart(document.getElementById('divisionChart'), {
+    type: 'bar',
+    data: { labels: divisionLabels, datasets: [{ label: 'Issues', data: divisionValues, backgroundColor: themeColors.red }] },
     options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
 });
 </script>

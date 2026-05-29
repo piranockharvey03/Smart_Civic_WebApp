@@ -11,6 +11,15 @@ $issueId = (int) ($_GET['id'] ?? 0);
 $ticketNumber = trim((string) ($_GET['ticket'] ?? ''));
 $timelinePage = max(1, (int) ($_GET['timeline_page'] ?? 1));
 $timelinePerPage = 8;
+$pageStyles = [
+    'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css',
+    app_url('assets/css/maps.css') . '?v=' . filemtime(__DIR__ . '/../assets/css/maps.css'),
+];
+$pageScripts = [
+    'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js',
+    app_url('assets/js/maps/geolocation.js') . '?v=' . filemtime(__DIR__ . '/../assets/js/maps/geolocation.js'),
+    app_url('assets/js/maps/issue-map.js') . '?v=' . filemtime(__DIR__ . '/../assets/js/maps/issue-map.js'),
+];
 
 $issue = null;
 if ($issueId > 0) {
@@ -279,7 +288,13 @@ if (is_logged_in()) {
                     <div class="col-md-6">
                         <div class="text-muted small text-uppercase mb-1">Location</div>
                         <div class="fw-semibold"><?= e($issue['location']) ?></div>
-                        <div class="small text-muted">Division: <?= e($issue['reporter_division'] ?? 'Not provided') ?></div>
+                        <div class="small text-muted">Division: <?= e($issue['division'] ?? $issue['reporter_division'] ?? 'Not provided') ?></div>
+                        <?php if (!empty($issue['address'])) : ?>
+                            <div class="small text-muted">Address: <?= e((string) $issue['address']) ?></div>
+                        <?php endif; ?>
+                        <?php if (!empty($issue['latitude']) && !empty($issue['longitude'])) : ?>
+                            <div class="small text-muted">Coordinates: <?= e(number_format((float) $issue['latitude'], 6)) ?>, <?= e(number_format((float) $issue['longitude'], 6)) ?></div>
+                        <?php endif; ?>
                     </div>
                     <div class="col-md-6">
                         <div class="text-muted small text-uppercase mb-1">Priority</div>
@@ -400,6 +415,16 @@ if (is_logged_in()) {
                     <?php endif; ?>
                 <?php else : ?>
                     <div class="alert alert-light mb-0">No image was uploaded for this ticket.</div>
+                <?php endif; ?>
+            </div>
+
+            <div class="app-card bg-white p-4 mb-4">
+                <h2 class="h5 mb-3">Issue Location</h2>
+                <?php if (!empty($issue['latitude']) && !empty($issue['longitude'])) : ?>
+                    <div class="map-canvas map-canvas--sm" id="issueDetailMap" data-map-mode="readonly" data-issue-lat="<?= e((string) $issue['latitude']) ?>" data-issue-lng="<?= e((string) $issue['longitude']) ?>" data-issue-title="<?= e($issue['ticket_number']) ?>" data-issue-address="<?= e((string) ($issue['address'] ?? '')) ?>"></div>
+                    <div class="small text-muted mt-2">Pin location: <?= e(number_format((float) $issue['latitude'], 6)) ?>, <?= e(number_format((float) $issue['longitude'], 6)) ?></div>
+                <?php else : ?>
+                    <div class="alert alert-light mb-0">No GPS coordinates were captured for this ticket.</div>
                 <?php endif; ?>
             </div>
 

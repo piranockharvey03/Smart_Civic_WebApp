@@ -41,6 +41,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 <div class="row g-3">
                     <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/reports.php')) ?>">Reports Center</a></div>
                     <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/analytics.php')) ?>">Analytics Dashboard</a></div>
+                    <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('issues/map.php')) ?>">Issue Map Dashboard</a></div>
                     <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/users.php')) ?>">User Management</a></div>
                     <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/settings.php')) ?>">System Settings</a></div>
                     <div class="col-md-6 col-xl-4"><a class="btn btn-outline-primary w-100" href="<?= e(app_url('admin/audit.php')) ?>">Audit Trail</a></div>

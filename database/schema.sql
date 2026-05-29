@@ -302,6 +302,10 @@ IF NOT EXISTS issues
 (255) NOT NULL,
     location VARCHAR
 (255) NOT NULL,
+    latitude DECIMAL(10,8) NULL,
+    longitude DECIMAL(11,8) NULL,
+    address VARCHAR(255) NULL,
+    division VARCHAR(100) NULL,
     status VARCHAR
 (40) NOT NULL DEFAULT 'submitted',
     priority VARCHAR
@@ -324,6 +328,12 @@ UPDATE CURRENT_TIMESTAMP,
 (priority),
     KEY idx_issues_location
 (location),
+    KEY idx_issues_division
+    (division),
+    KEY idx_issues_latitude
+    (latitude),
+    KEY idx_issues_longitude
+    (longitude),
     KEY idx_issues_assigned_to
     (assigned_to),
     KEY idx_issues_created_at
