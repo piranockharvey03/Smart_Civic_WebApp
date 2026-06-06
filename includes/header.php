@@ -80,8 +80,14 @@ $user = current_user();
                         <i class="bi bi-moon-stars" data-theme-icon></i>
                         <span class="d-none d-sm-inline" data-theme-label>Dark mode</span>
                     </button>
-                    <span><?= e($user['full_name'] ?? '') ?></span>
-                    <span class="badge text-bg-light text-uppercase"><?= e($user['role'] ?? '') ?></span>
+                    <div class="d-flex align-items-center gap-2">
+                        <span><?= e($user['full_name'] ?? '') ?></span>
+                        <span class="badge text-bg-light text-uppercase"><?= e($user['role'] ?? '') ?></span>
+                            <form action="/auth/logout-other.php" method="POST" class="d-inline ms-2" onsubmit="return confirm('Log out other devices? This will end sessions on other devices. Continue?');">
+                            <?= csrf_field() ?>
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Log out other devices">Log out other devices</button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </nav>

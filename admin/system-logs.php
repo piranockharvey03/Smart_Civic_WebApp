@@ -17,7 +17,7 @@ if (!system_logs_table_exists()) {
                 <div class="app-card issue-panel compact-card p-4 p-lg-4">
                     <p class="text-uppercase small text-muted mb-2">System Logs</p>
                     <h1 class="h2 mb-2">Logging storage is not available yet</h1>
-                    <p class="mb-0">The application is running, but the `system_logs` table has not been created in the database.</p>
+                    <p class="mb-0">The application is running, but the system_logs table has not been created in the database.</p>
                 </div>
             </div>
         </div>
@@ -30,8 +30,9 @@ if (!system_logs_table_exists()) {
 $filters = [
     'log_type' => trim((string) ($_GET['log_type'] ?? '')),
     'severity' => trim((string) ($_GET['severity'] ?? '')),
-    'user_id' => (int) ($_GET['user_id'] ?? 0),
+    'user_id' => max(0, (int) ($_GET['user_id'] ?? 0)),
 ];
+
 $page = max(1, (int) ($_GET['page'] ?? 1));
 $perPage = 20;
 $offset = ($page - 1) * $perPage;
@@ -60,15 +61,14 @@ $countStmt = db()->prepare('SELECT COUNT(*) AS total FROM system_logs sl' . $whe
 $countStmt->execute($params);
 $total = (int) ($countStmt->fetch()['total'] ?? 0);
 
-$stmt = db()->prepare(
-    'SELECT sl.*, u.full_name AS user_name, u.email AS user_email
-     FROM system_logs sl
-     LEFT JOIN users u ON u.id = sl.user_id' .
-     $whereSql .
-    ' ORDER BY sl.created_at DESC, sl.id DESC
-     LIMIT :limit OFFSET :offset'
-);
+$sql = 'SELECT sl.id, sl.user_id, sl.log_type, sl.severity, sl.source, sl.message, sl.context_json, sl.ip_address, sl.user_agent, sl.created_at,
+               u.full_name AS user_name, u.email AS user_email
+        FROM system_logs sl
+        LEFT JOIN users u ON u.id = sl.user_id' . $whereSql . '
+        ORDER BY sl.created_at DESC, sl.id DESC
+        LIMIT :limit OFFSET :offset';
 
+$stmt = db()->prepare($sql);
 foreach ($params as $key => $value) {
     $stmt->bindValue(':' . $key, $value);
 }
@@ -76,6 +76,34 @@ $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
 $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
 $logs = $stmt->fetchAll();
+
+function system_logs_pretty_json(?string $json): string
+{
+    if ($json === null || trim($json) === '') {
+        return '';
+    }
+
+    $decoded = json_decode($json, true);
+    if (json_last_error() === JSON_ERROR_NONE) {
+        $pretty = json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        return is_string($pretty) ? $pretty : $json;
+    }
+
+    return $json;
+}
+
+function system_logs_truncate(string $text, int $limit = 220): array
+{
+    $length = function_exists('mb_strlen') ? mb_strlen($text) : strlen($text);
+    if ($length <= $limit) {
+        return [$text, false];
+    }
+
+    $short = function_exists('mb_substr') ? mb_substr($text, 0, $limit) : substr($text, 0, $limit);
+
+    return [$short . '...', true];
+}
 
 $pageTitle = APP_NAME . ' | System Logs';
 $activePage = 'admin-system-logs';
@@ -94,7 +122,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
         <div class="col-12">
             <div class="app-card bg-white compact-card">
-                <form class="row g-3 align-items-end" method="get">
+                <form class="row g-3 align-items-end" method="get" action="<?= e(app_url('admin/system-logs.php')) ?>">
                     <div class="col-md-4">
                         <label class="form-label" for="log_type">Log type</label>
                         <input type="text" class="form-control" id="log_type" name="log_type" value="<?= e($filters['log_type']) ?>" placeholder="exception, security, fatal">
@@ -126,6 +154,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 <th>Severity</th>
                                 <th>User</th>
                                 <th>Message</th>
+                                <th>Context</th>
                                 <th>Source</th>
                                 <th>IP</th>
                             </tr>
@@ -133,19 +162,42 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         <tbody>
                             <?php if (!$logs) : ?>
                                 <tr>
-                                    <td colspan="7" class="text-center text-muted py-4">No system logs found for the selected filters.</td>
+                                    <td colspan="8" class="text-center text-muted py-4">No system logs found for the selected filters.</td>
                                 </tr>
                             <?php else : ?>
                                 <?php foreach ($logs as $log) : ?>
+                                    <?php
+                                    $message = (string) ($log['message'] ?? '');
+                                    [$shortMessage, $wasTruncated] = system_logs_truncate($message);
+                                    $contextPretty = system_logs_pretty_json(isset($log['context_json']) ? (string) $log['context_json'] : null);
+                                    ?>
                                     <tr>
-                                        <td><?= e((string) $log['created_at']) ?></td>
-                                        <td><span class="issue-badge secondary"><?= e((string) $log['log_type']) ?></span></td>
-                                        <td><span class="issue-badge <?= e(system_log_severity_badge_class((string) $log['severity'])) ?>"><?= e((string) $log['severity']) ?></span></td>
+                                        <td><?= e((string) ($log['created_at'] ?? '')) ?></td>
+                                        <td><span class="issue-badge secondary"><?= e((string) ($log['log_type'] ?? '')) ?></span></td>
+                                        <td><span class="issue-badge <?= e(system_log_severity_badge_class((string) ($log['severity'] ?? ''))) ?>"><?= e((string) ($log['severity'] ?? '')) ?></span></td>
                                         <td>
                                             <?= e((string) ($log['user_name'] ?? 'System')) ?><br>
                                             <span class="text-muted small"><?= e((string) ($log['user_email'] ?? '')) ?></span>
                                         </td>
-                                        <td><?= e((string) $log['message']) ?></td>
+                                        <td>
+                                            <div><?= e($shortMessage) ?></div>
+                                            <?php if ($wasTruncated) : ?>
+                                                <details class="mt-2">
+                                                    <summary class="small text-primary">Show full message</summary>
+                                                    <pre class="small mb-0 mt-2" style="white-space:pre-wrap;word-break:break-word;"><?= e($message) ?></pre>
+                                                </details>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php if ($contextPretty !== '') : ?>
+                                                <details>
+                                                    <summary class="small text-primary">View context</summary>
+                                                    <pre class="small mt-2 mb-0" style="white-space:pre-wrap;word-break:break-word;max-height:320px;overflow:auto;"><?= e($contextPretty) ?></pre>
+                                                </details>
+                                            <?php else : ?>
+                                                <span class="text-muted">-</span>
+                                            <?php endif; ?>
+                                        </td>
                                         <td><?= e((string) ($log['source'] ?? '')) ?></td>
                                         <td><?= e((string) ($log['ip_address'] ?? '')) ?></td>
                                     </tr>
@@ -162,14 +214,16 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 <div class="text-muted">Showing <?= e((string) ($total > 0 ? min($total, $offset + 1) : 0)) ?> to <?= e((string) ($total > 0 ? min($total, $offset + $perPage) : 0)) ?> of <?= e((string) $total) ?> entries</div>
                 <div class="d-flex gap-2">
                     <?php if ($page > 1) : ?>
-                        <a class="btn btn-outline-primary btn-sm" href="<?= e(app_url('admin/system-logs.php?' . http_build_query(array_merge($_GET, ['page' => $page - 1])))) ?>">Previous</a>
+                        <?php $prevQuery = array_merge($_GET, ['page' => $page - 1]); ?>
+                        <a class="btn btn-outline-primary btn-sm" href="<?= e(app_url('admin/system-logs.php?' . http_build_query($prevQuery))) ?>">Previous</a>
                     <?php endif; ?>
                     <?php if (($offset + $perPage) < $total) : ?>
-                        <a class="btn btn-outline-primary btn-sm" href="<?= e(app_url('admin/system-logs.php?' . http_build_query(array_merge($_GET, ['page' => $page + 1])))) ?>">Next</a>
+                        <?php $nextQuery = array_merge($_GET, ['page' => $page + 1]); ?>
+                        <a class="btn btn-outline-primary btn-sm" href="<?= e(app_url('admin/system-logs.php?' . http_build_query($nextQuery))) ?>">Next</a>
                     <?php endif; ?>
                 </div>
             </div>
         </div>
     </div>
 </section>
-<?php require_once __DIR__ . '/../includes/footer.php'; ?>
+<?php require_once __DIR__ . '/../includes/footer.php';

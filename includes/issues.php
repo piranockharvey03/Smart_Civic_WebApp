@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 function issue_status_catalog(): array
 {
-    return [
+    $defaults = [
         'submitted' => 'Submitted',
         'under_review' => 'Under Review',
         'assigned' => 'Assigned',
@@ -14,6 +14,26 @@ function issue_status_catalog(): array
         'closed' => 'Closed',
         'reopened' => 'Reopened',
     ];
+
+    try {
+        $json = admin_get_setting('default_statuses', json_encode($defaults, JSON_UNESCAPED_SLASHES));
+        $decoded = json_decode((string) $json, true);
+
+        if (!is_array($decoded)) {
+            return $defaults;
+        }
+
+        // Ensure keys and values are strings
+        foreach ($decoded as $k => $v) {
+            if (!is_string($k) || $k === '' || !is_string($v)) {
+                return $defaults;
+            }
+        }
+
+        return $decoded;
+    } catch (Throwable) {
+        return $defaults;
+    }
 }
 
 function issue_status_label(string $status): string
@@ -40,12 +60,31 @@ function issue_status_badge_class(string $status): string
 
 function issue_priority_catalog(): array
 {
-    return [
+    $defaults = [
         'low' => 'Low',
         'medium' => 'Medium',
         'high' => 'High',
         'critical' => 'Critical',
     ];
+
+    try {
+        $json = admin_get_setting('default_priorities', json_encode($defaults, JSON_UNESCAPED_SLASHES));
+        $decoded = json_decode((string) $json, true);
+
+        if (!is_array($decoded)) {
+            return $defaults;
+        }
+
+        foreach ($decoded as $k => $v) {
+            if (!is_string($k) || $k === '' || !is_string($v)) {
+                return $defaults;
+            }
+        }
+
+        return $decoded;
+    } catch (Throwable) {
+        return $defaults;
+    }
 }
 
 function issue_priority_label(string $priority): string

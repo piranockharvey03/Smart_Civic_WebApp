@@ -34,7 +34,8 @@ function app_log_system_event(string $logType, string $severity, string $message
             'log_type' => $logType,
             'severity' => $severity,
             'source' => $source,
-            'message' => mb_substr($message, 0, 500),
+            // Store the full message in the DB (column will be altered to TEXT by migration)
+            'message' => (string) $message,
             'context_json' => $context ? json_encode($context, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null,
             'ip_address' => app_client_ip(),
             'user_agent' => app_user_agent(),

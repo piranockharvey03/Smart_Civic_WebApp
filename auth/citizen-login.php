@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/bootstrap.php';
+require_once __DIR__ . '/../includes/auth-page.php';
 
 if (is_logged_in()) {
     redirect(dashboard_url_for_role(current_user_role()));
@@ -10,6 +11,7 @@ if (is_logged_in()) {
 
 $errors = [];
 $email = '';
+$rememberMe = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
@@ -17,6 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $email = trim((string) ($_POST['email'] ?? ''));
         $password = (string) ($_POST['password'] ?? '');
+        $rememberMe = !empty($_POST['remember_me']);
 
         if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'Enter a valid email address.';
@@ -27,24 +30,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (!$errors) {
-            $stmt = db()->prepare(
-                'SELECT u.id, u.full_name, u.email, u.password, u.role_id,
-                    cp.phone AS phone,
-                    cp.division AS division,
-                        r.name AS role_name
-                 FROM users u
-                 INNER JOIN roles r ON r.id = u.role_id
-                 LEFT JOIN citizen_profiles cp ON cp.user_id = u.id
-                 WHERE u.email = :email AND u.is_active = 1
-                 LIMIT 1'
-            );
-            $stmt->execute(['email' => $email]);
-            $user = $stmt->fetch();
+            $user = auth_fetch_login_user($email, ['citizen'], 'citizen_profiles');
 
-            if ($user && $user['role_name'] === 'citizen' && password_verify($password, $user['password'])) {
+            if ($user && password_verify($password, $user['password'])) {
                 login_user($user);
                 persist_user_session($user);
                 clear_old();
+
+                if (!empty($user['must_change_password'])) {
+                    clear_remember_me_cookie();
+                    set_flash('warning', 'Please set a new password before continuing.');
+                    redirect(app_url('auth/password-reset.php'));
+                }
+
+                if ($rememberMe) {
+                    issue_remember_me_token($user);
+                } else {
+                    clear_remember_me_cookie();
+                }
+
                 set_flash('success', 'Welcome back, ' . $user['full_name'] . '!');
                 redirect(dashboard_url_for_role($user['role_name']));
             }
@@ -53,50 +57,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    flash_old(['email' => $email]);
+    flash_old(['email' => $email, 'remember_me' => $rememberMe ? '1' : '0']);
 }
 
-$pageTitle = APP_NAME . ' | Citizen Login';
-require_once __DIR__ . '/../includes/header.php';
-?>
-<div class="auth-wrapper container">
-    <div class="row auth-card bg-white g-0">
-        <div class="col-lg-5 auth-aside d-flex flex-column justify-content-between">
-            <div>
-                <div class="portal-brand">
-                    <img class="emblem" src="<?= e(app_url('KCCA.png')) ?>" alt="KCCA logo">
-                    <div class="title">KCCA Smart Civic App</div>
-                </div>
-                <h2 class="h5 fw-semibold">Citizen Login</h2>
-                <p class="mt-3 mb-0 text-muted">Secure access for registered citizens only.</p>
-            </div>
-            <div class="pt-4 small text-muted">Kampala Capital City Authority</div>
-        </div>
-        <div class="col-lg-7 p-5">
-            <h2 class="h4 mb-2">Sign in to your citizen account</h2>
-            <p class="text-muted mb-4">Use your citizen credentials to access reports and services.</p>
-
-            <?php foreach ($errors as $error) : ?>
-                <div class="alert alert-danger"><?= e($error) ?></div>
-            <?php endforeach; ?>
-
-            <form method="post" action="">
-                <?= csrf_field() ?>
-                <div class="mb-3">
-                    <label for="email" class="form-label">Email address</label>
-                    <input type="email" class="form-control form-control-lg" id="email" name="email" value="<?= old('email', $email) ?>" required>
-                </div>
-                <div class="mb-3">
-                    <label for="password" class="form-label">Password</label>
-                    <input type="password" class="form-control form-control-lg" id="password" name="password" required>
-                </div>
-                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-                    <a href="<?= e(app_url('auth/register.php')) ?>">Create citizen account</a>
-                    <a href="<?= e(app_url('auth/login.php')) ?>">Staff/admin login</a>
-                </div>
-                <button type="submit" class="btn btn-primary btn-lg w-100">Login</button>
-            </form>
-        </div>
-    </div>
-</div>
-<?php require_once __DIR__ . '/../includes/footer.php'; ?>
+render_auth_page([
+    'pageTitle' => APP_NAME . ' | Citizen Login',
+    'sidebarTitle' => 'KCCA Smart Civic App',
+    'sidebarHeading' => 'Citizen Login',
+    'sidebarDescription' => 'Secure access for registered citizens only.',
+    'mainHeading' => 'Sign in to your citizen account',
+    'mainDescription' => 'Use your citizen credentials to access reports and services.',
+    'supportText' => 'Kampala Capital City Authority',
+    'formAction' => '',
+    'emailValue' => $email,
+    'errors' => $errors,
+    'submitLabel' => 'Login',
+    'linkGapClass' => 'd-flex justify-content-between align-items-center mb-4 flex-wrap gap-2',
+    'rememberMeChecked' => $rememberMe,
+    'links' => [
+        ['href' => app_url('auth/register.php'), 'label' => 'Create citizen account'],
+        ['href' => login_url_for_roles(['admin', 'staff']), 'label' => 'Staff/admin login'],
+    ],
+    'footerNote' => 'Citizens can self-register and recover access through the support desk.',
+    'footerLinks' => [
+        ['href' => app_url('auth/register.php'), 'label' => 'Register'],
+    ],
+]);

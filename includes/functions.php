@@ -59,6 +59,11 @@ function old(string $key, string $default = ''): string
     return e($_SESSION['old'][$key] ?? $default);
 }
 
+function old_checked(string $key): bool
+{
+    return !empty($_SESSION['old'][$key]);
+}
+
 function flash_old(array $data): void
 {
     $_SESSION['old'] = $data;

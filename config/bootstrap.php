@@ -25,6 +25,12 @@ require_once __DIR__ . '/../includes/auth.php';
 start_secure_session();
 app_register_error_handlers();
 
+if (!is_logged_in()) {
+    if (function_exists('attempt_remember_me_login')) {
+        attempt_remember_me_login();
+    }
+}
+
 if (is_logged_in() && current_user_must_change_password()) {
     $scriptName = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
     if (!in_array($scriptName, ['password-reset.php', 'logout.php'], true)) {
