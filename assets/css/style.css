@@ -63,8 +63,9 @@ body.app-shell {
 .sidebar-logo-image {
     background: linear-gradient(180deg, rgba(31, 122, 61, 0.07), rgba(255, 255, 255, 0.04));
     color: var(--app-ink);
-    border-right: 1px solid var(--app-border);
-    padding: 2.25rem;
+    border: 3px solid var(--app-border);
+    padding: 0.25rem;
+    margin-left: 3.25rem;
     position: relative;
     overflow: hidden;
     max-height: 88px;
