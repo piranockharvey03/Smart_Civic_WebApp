@@ -43,6 +43,40 @@ function admin_permissions_table_exists(): bool
     return issue_table_exists('permissions');
 }
 
+function admin_permission_seed(): array
+{
+    return [
+        ['key' => 'view_issues', 'module' => 'issues', 'description' => 'View issue records'],
+        ['key' => 'edit_issues', 'module' => 'issues', 'description' => 'Edit issue records'],
+        ['key' => 'delete_issues', 'module' => 'issues', 'description' => 'Delete issue records'],
+        ['key' => 'assign_issues', 'module' => 'issues', 'description' => 'Assign issues to staff'],
+        ['key' => 'generate_reports', 'module' => 'reports', 'description' => 'Generate administrative reports'],
+        ['key' => 'manage_users', 'module' => 'users', 'description' => 'Manage user accounts and roles'],
+        ['key' => 'manage_settings', 'module' => 'settings', 'description' => 'Manage system settings'],
+        ['key' => 'view_audit_trail', 'module' => 'audit', 'description' => 'View audit log entries'],
+        ['key' => 'view_analytics', 'module' => 'analytics', 'description' => 'View analytics dashboards'],
+    ];
+}
+
+function admin_seed_permissions(): void
+{
+    if (!admin_permissions_table_exists()) {
+        return;
+    }
+
+    $stmt = db()->prepare(
+        'INSERT INTO permissions (`key`, module, `description`)
+         VALUES (:key, :module, :description)
+         ON DUPLICATE KEY UPDATE
+            module = VALUES(module),
+            `description` = VALUES(`description`)'
+    );
+
+    foreach (admin_permission_seed() as $permission) {
+        $stmt->execute($permission);
+    }
+}
+
 function admin_audit_table_name(): string
 {
     return issue_table_exists('audit_logs') ? 'audit_logs' : 'auth_audit_logs';
@@ -226,6 +260,8 @@ function admin_record_user_activity(int $userId, string $action, ?string $entity
 
 function admin_seed_role_permissions(): void
 {
+    admin_seed_permissions();
+
     if (!admin_permissions_table_exists() || !issue_table_exists('role_permissions')) {
         return;
     }

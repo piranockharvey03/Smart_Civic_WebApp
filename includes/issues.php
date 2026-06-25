@@ -806,8 +806,9 @@ function issue_fetch_map_issues(array $filters = [], ?int $viewerId = null, ?str
     $hasPriorityColumn = issue_issue_column_exists('priority');
 
     if ($viewerRole === 'staff' && $viewerId !== null) {
-        $conditions[] = '(i.assigned_to = :viewer_id OR i.user_id = :viewer_id)';
-        $params['viewer_id'] = $viewerId;
+        $conditions[] = '(i.assigned_to = :viewer_assigned_id OR i.user_id = :viewer_reporter_id)';
+        $params['viewer_assigned_id'] = $viewerId;
+        $params['viewer_reporter_id'] = $viewerId;
     } elseif ($viewerRole === 'citizen' && $viewerId !== null) {
         $conditions[] = 'i.user_id = :viewer_id';
         $params['viewer_id'] = $viewerId;
@@ -834,8 +835,12 @@ function issue_fetch_map_issues(array $filters = [], ?int $viewerId = null, ?str
     }
 
     if (!empty($filters['query'])) {
-        $conditions[] = '(i.ticket_number LIKE :query OR i.title LIKE :query OR i.location LIKE :query OR i.address LIKE :query)';
-        $params['query'] = '%' . trim((string) $filters['query']) . '%';
+        $queryLike = '%' . trim((string) $filters['query']) . '%';
+        $conditions[] = '(i.ticket_number LIKE :query_ticket OR i.title LIKE :query_title OR i.location LIKE :query_location OR i.address LIKE :query_address)';
+        $params['query_ticket'] = $queryLike;
+        $params['query_title'] = $queryLike;
+        $params['query_location'] = $queryLike;
+        $params['query_address'] = $queryLike;
     }
 
     $sql =
@@ -871,8 +876,9 @@ function issue_fetch_division_breakdown(?int $viewerId = null, ?string $viewerRo
     $params = [];
 
     if ($viewerRole === 'staff' && $viewerId !== null) {
-        $conditions[] = '(i.assigned_to = :viewer_id OR i.user_id = :viewer_id)';
-        $params['viewer_id'] = $viewerId;
+        $conditions[] = '(i.assigned_to = :viewer_assigned_id OR i.user_id = :viewer_reporter_id)';
+        $params['viewer_assigned_id'] = $viewerId;
+        $params['viewer_reporter_id'] = $viewerId;
     } elseif ($viewerRole === 'citizen' && $viewerId !== null) {
         $conditions[] = 'i.user_id = :viewer_id';
         $params['viewer_id'] = $viewerId;

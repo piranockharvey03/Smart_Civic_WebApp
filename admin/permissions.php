@@ -6,7 +6,21 @@ require_once __DIR__ . '/../config/bootstrap.php';
 require_role(['admin']);
 
 $currentUser = current_user();
-admin_seed_role_permissions();
+$permissionsReady = admin_permissions_table_exists() && issue_table_exists('role_permissions');
+$roles = db()->query('SELECT id, name FROM roles ORDER BY id ASC')->fetchAll();
+$permissions = [];
+$existing = [];
+$matrix = [];
+
+if ($permissionsReady) {
+    admin_seed_role_permissions();
+    $permissions = db()->query('SELECT id, `key`, module, `description` FROM permissions ORDER BY module ASC, `key` ASC')->fetchAll();
+    $existing = db()->query('SELECT role_id, permission_id FROM role_permissions')->fetchAll();
+
+    foreach ($existing as $row) {
+        $matrix[(int) $row['role_id']][(int) $row['permission_id']] = true;
+    }
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
@@ -14,35 +28,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect(app_url('admin/permissions.php'));
     }
 
+    if (!$permissionsReady) {
+        set_flash('error', 'Permission tables are not installed. Run the phase four admin reporting migration first.');
+        redirect(app_url('admin/permissions.php'));
+    }
+
     $roleId = (int) ($_POST['role_id'] ?? 0);
-    $permissionIds = array_map('intval', $_POST['permissions'] ?? []);
-    $permissionIds = array_filter($permissionIds, static fn (int $value): bool => $value > 0);
+    $roleIds = array_flip(array_map(static fn (array $role): int => (int) $role['id'], $roles));
 
-    $delete = db()->prepare('DELETE FROM role_permissions WHERE role_id = :role_id');
-    $delete->execute(['role_id' => $roleId]);
+    if (!isset($roleIds[$roleId])) {
+        set_flash('error', 'Select a valid role before saving permissions.');
+        redirect(app_url('admin/permissions.php'));
+    }
 
-    if ($permissionIds) {
-        $insert = db()->prepare('INSERT INTO role_permissions (role_id, permission_id, granted_by) VALUES (:role_id, :permission_id, :granted_by)');
-        foreach ($permissionIds as $permissionId) {
-            $insert->execute([
-                'role_id' => $roleId,
-                'permission_id' => $permissionId,
-                'granted_by' => (int) $currentUser['id'],
-            ]);
+    $validPermissionIds = array_flip(array_map(static fn (array $permission): int => (int) $permission['id'], $permissions));
+    $permissionIds = array_values(array_unique(array_filter(
+        array_map('intval', (array) ($_POST['permissions'] ?? [])),
+        static fn (int $value): bool => $value > 0
+    )));
+
+    foreach ($permissionIds as $permissionId) {
+        if (!isset($validPermissionIds[$permissionId])) {
+            set_flash('error', 'One or more selected permissions are no longer available.');
+            redirect(app_url('admin/permissions.php'));
         }
     }
 
-    admin_record_audit_log((int) $currentUser['id'], 'permissions_updated', 'role_permissions', (string) $roleId, 'Role permissions updated');
-    set_flash('success', 'Role permissions saved successfully.');
-    redirect(app_url('admin/permissions.php'));
-}
+    db()->beginTransaction();
 
-$roles = db()->query('SELECT id, name FROM roles ORDER BY id ASC')->fetchAll();
-$permissions = db()->query('SELECT id, `key`, module, `description` FROM permissions ORDER BY module ASC, `key` ASC')->fetchAll();
-$existing = db()->query('SELECT role_id, permission_id FROM role_permissions')->fetchAll();
-$matrix = [];
-foreach ($existing as $row) {
-    $matrix[(int) $row['role_id']][(int) $row['permission_id']] = true;
+    try {
+        $delete = db()->prepare('DELETE FROM role_permissions WHERE role_id = :role_id');
+        $delete->execute(['role_id' => $roleId]);
+
+        if ($permissionIds) {
+            $hasGrantedByColumn = db_column_exists('role_permissions', 'granted_by');
+            $insertSql = $hasGrantedByColumn
+                ? 'INSERT INTO role_permissions (role_id, permission_id, granted_by) VALUES (:role_id, :permission_id, :granted_by)'
+                : 'INSERT INTO role_permissions (role_id, permission_id) VALUES (:role_id, :permission_id)';
+            $insert = db()->prepare($insertSql);
+
+            foreach ($permissionIds as $permissionId) {
+                $params = [
+                    'role_id' => $roleId,
+                    'permission_id' => $permissionId,
+                ];
+
+                if ($hasGrantedByColumn) {
+                    $params['granted_by'] = (int) $currentUser['id'];
+                }
+
+                $insert->execute($params);
+            }
+        }
+
+        db()->commit();
+
+        admin_record_audit_log((int) $currentUser['id'], 'permissions_updated', 'role_permissions', (string) $roleId, 'Role permissions updated');
+        set_flash('success', 'Role permissions saved successfully.');
+    } catch (Throwable $throwable) {
+        if (db()->inTransaction()) {
+            db()->rollBack();
+        }
+
+        app_log_exception($throwable);
+        set_flash('error', 'Unable to save role permissions right now.');
+    }
+
+    redirect(app_url('admin/permissions.php'));
 }
 
 $pageTitle = APP_NAME . ' | Permissions';
@@ -59,6 +111,20 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 <p class="mb-0">Manage permissions for issues, reporting, analytics, users, settings, and audit access.</p>
             </div>
         </div>
+
+        <?php if (!$permissionsReady) : ?>
+            <div class="col-12">
+                <div class="alert alert-warning">
+                    Permission tables are not installed. Run <code>database/migrations/2026_05_26_phase_four_admin_reporting.sql</code> before managing role permissions.
+                </div>
+            </div>
+        <?php elseif (!$permissions) : ?>
+            <div class="col-12">
+                <div class="alert alert-info">
+                    No permissions are configured yet. Refresh this page after the permissions catalog has been seeded.
+                </div>
+            </div>
+        <?php endif; ?>
 
         <?php foreach ($roles as $role) : ?>
             <div class="col-12">
@@ -87,7 +153,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                             </div>
                         <?php endforeach; ?>
                         <div class="col-12">
-                            <button type="submit" class="btn btn-primary">Save Permissions</button>
+                            <button type="submit" class="btn btn-primary" <?= (!$permissionsReady || !$permissions) ? 'disabled' : '' ?>>Save Permissions</button>
                         </div>
                     </form>
                 </div>

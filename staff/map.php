@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/bootstrap.php';
-require_role(['admin']);
+require_role(['staff']);
 
 $user = current_user();
 $role = current_user_role();
@@ -19,8 +19,8 @@ $filters = [
 $categories = issue_category_options();
 $divisions = issue_division_options();
 $divisionBreakdown = issue_fetch_division_breakdown((int) $user['id'], (string) $role, 8);
-$pageTitle = APP_NAME . ' | Issue Map Dashboard';
-$activePage = 'issue-map';
+$pageTitle = APP_NAME . ' | Assigned Issue Map';
+$activePage = 'staff-map';
 $pageStyles = [
     'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css',
     'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css',
@@ -45,13 +45,13 @@ require_once __DIR__ . '/../includes/sidebar.php';
             <div class="app-card issue-panel p-4 p-lg-5">
                 <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-center">
                     <div>
-                        <p class="text-uppercase small text-muted mb-2">Spatial Civic Intelligence</p>
-                        <h1 class="h3 mb-2">Issue Map Dashboard</h1>
-                        <p class="mb-0 text-muted">Track civic issues spatially, spot hotspots, and open tickets directly from the map.</p>
+                        <p class="text-uppercase small text-muted mb-2">Assigned Issue Locations</p>
+                        <h1 class="h3 mb-2">My Issue Map</h1>
+                        <p class="mb-0 text-muted">View citizen-submitted coordinates for your assigned tickets and open each issue directly from the map.</p>
                     </div>
                     <div class="d-flex flex-wrap gap-2">
-                        <a href="<?= e(app_url('admin/analytics.php')) ?>" class="btn btn-outline-primary">Analytics Dashboard</a>
-                        <a href="<?= e(app_url('admin/issues.php')) ?>" class="btn btn-primary">Issue Management</a>
+                        <a href="<?= e(app_url('staff/dashboard.php')) ?>" class="btn btn-outline-primary">Staff Dashboard</a>
+                        <a href="<?= e(app_url('staff/issues.php')) ?>" class="btn btn-primary">Issue Console</a>
                     </div>
                 </div>
             </div>
@@ -119,7 +119,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
         <div class="col-xl-3">
             <div class="app-card bg-white p-4 mb-4">
-                <h2 class="h5 mb-3">Division Pressure</h2>
+                <h2 class="h5 mb-3">Division Snapshot</h2>
                 <div class="d-grid gap-2 compact-stack">
                     <?php foreach ($divisionBreakdown as $division) : ?>
                         <div class="border rounded-3 p-3">
@@ -128,6 +128,9 @@ require_once __DIR__ . '/../includes/sidebar.php';
                             <span class="issue-badge secondary"><?= e((string) $division['issue_count']) ?> issues</span>
                         </div>
                     <?php endforeach; ?>
+                    <?php if (!$divisionBreakdown) : ?>
+                        <div class="alert alert-info mb-0">No assigned issues with coordinates are available yet.</div>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -137,7 +140,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     <div class="d-flex align-items-center gap-2"><span class="map-legend-dot danger"></span> Critical / Open</div>
                     <div class="d-flex align-items-center gap-2"><span class="map-legend-dot warning"></span> In Progress</div>
                     <div class="d-flex align-items-center gap-2"><span class="map-legend-dot success"></span> Resolved</div>
-                    <div class="small text-muted mt-2">Marker clusters reduce overcrowding. Heatmap highlights hotspots for roads, waste, and drainage complaints.</div>
+                    <div class="small text-muted mt-2">Marker clusters reduce overcrowding. Heatmap highlights location density across your assigned reports.</div>
                 </div>
             </div>
         </div>
