@@ -49,8 +49,10 @@ if (!$issue) {
 
 $isCitizenOwner = $role === 'citizen' && (int) $issue['user_id'] === (int) $user['id'];
 $isAssignedStaff = $role === 'staff' && (int) ($issue['assigned_to'] ?? 0) === (int) $user['id'];
-$canManage = in_array((string) $role, ['staff', 'admin'], true);
-$canAccessConversation = $role === 'admin' || $isCitizenOwner || $isAssignedStaff;
+$viewerDepartmentId = function_exists('department_current_user_department_id') ? department_current_user_department_id($user) : null;
+$isDepartmentManager = $role === 'department_manager' && $viewerDepartmentId !== null && isset($issue['department_id']) && (int) $issue['department_id'] === $viewerDepartmentId;
+$canManage = in_array((string) $role, ['staff', 'admin'], true) || $isDepartmentManager;
+$canAccessConversation = $role === 'admin' || $isCitizenOwner || $isAssignedStaff || $isDepartmentManager;
 
 if ($role === 'citizen' && !$isCitizenOwner) {
     http_response_code(403);
@@ -59,6 +61,12 @@ if ($role === 'citizen' && !$isCitizenOwner) {
 }
 
 if ($role === 'staff' && !$isAssignedStaff) {
+    http_response_code(403);
+    echo '403 Forbidden';
+    exit;
+}
+
+if ($role === 'department_manager' && !$isDepartmentManager) {
     http_response_code(403);
     echo '403 Forbidden';
     exit;
@@ -145,8 +153,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new RuntimeException('Only citizens can confirm a resolution.');
                 }
 
-                if (!in_array((string) $issue['status'], ['resolved', 'closed'], true)) {
-                    throw new RuntimeException('This issue is not in a resolvable state.');
+                if (!in_array((string) $issue['status'], ['awaiting_citizen_verification', 'resolved', 'closed'], true)) {
+                    throw new RuntimeException('This issue is not ready for citizen verification.');
                 }
 
                 issue_update_workflow(
@@ -168,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new RuntimeException('Only citizens can reopen an issue.');
                 }
 
-                if (!in_array((string) $issue['status'], ['resolved', 'closed'], true)) {
+                if (!in_array((string) $issue['status'], ['awaiting_citizen_verification', 'resolved', 'closed'], true)) {
                     throw new RuntimeException('Only resolved or closed issues can be reopened.');
                 }
 
@@ -194,6 +202,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new RuntimeException('You do not have permission to update this issue.');
             }
 
+            if ($isDepartmentManager) {
+                $departmentCheckStmt = db()->prepare('SELECT department_id FROM issues WHERE id = :id LIMIT 1');
+                $departmentCheckStmt->execute(['id' => (int) $issue['id']]);
+                $departmentCheck = $departmentCheckStmt->fetch();
+
+                if (!$departmentCheck || (int) ($departmentCheck['department_id'] ?? 0) !== (int) $viewerDepartmentId) {
+                    throw new RuntimeException('You can only update issues in your department.');
+                }
+            }
+
             $status = trim((string) ($_POST['status'] ?? ''));
             $priority = trim((string) ($_POST['priority'] ?? 'medium'));
             $assignedTo = trim((string) ($_POST['assigned_to'] ?? ''));
@@ -215,6 +233,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($role === 'staff') {
                 $assignedId = (int) ($issue['assigned_to'] ?? $user['id']);
+            }
+
+            if ($isDepartmentManager && $assignedId !== null) {
+                $departmentStaffStmt = db()->prepare('SELECT u.id FROM users u WHERE u.id = :id AND u.department_id = :department_id AND u.is_active = 1 LIMIT 1');
+                $departmentStaffStmt->execute([
+                    'id' => $assignedId,
+                    'department_id' => (int) $viewerDepartmentId,
+                ]);
+
+                if (!$departmentStaffStmt->fetch()) {
+                    throw new RuntimeException('Select a staff member from your department.');
+                }
             }
 
             if ($assignedId !== null) {
@@ -371,6 +401,7 @@ if (is_logged_in()) {
                     <?php endif; ?>
                 <?php endif; ?>
 
+                <?php if ($canAccessConversation) : ?>
                 <div class="mt-4">
                     <form method="post" action="" class="comment-compose">
                         <?= csrf_field() ?>
@@ -382,8 +413,9 @@ if (is_logged_in()) {
                         <button type="submit" class="btn btn-outline-primary">Post Comment</button>
                     </form>
                 </div>
+                <?php endif; ?>
 
-                <?php if ($role === 'citizen' && in_array((string) $issue['status'], ['resolved', 'closed'], true)) : ?>
+                <?php if ($role === 'citizen' && in_array((string) $issue['status'], ['awaiting_citizen_verification', 'resolved', 'closed'], true)) : ?>
                     <div class="mt-4 d-flex flex-wrap gap-2">
                         <form method="post" action="">
                             <?= csrf_field() ?>
@@ -523,7 +555,10 @@ if (is_logged_in()) {
             <?php else : ?>
                 <div class="app-card bg-white p-4">
                     <h2 class="h5 mb-3">Citizen Actions</h2>
-                    <p class="text-muted mb-0">You can comment on this issue, confirm the resolution when it is fixed, or reopen it if the problem persists.</p>
+                    <p class="text-muted mb-0">You can comment on this issue, confirm the resolution when KCCA marks it fixed, or reopen it if the problem persists.</p>
+                    <?php if ((string) $issue['status'] === 'awaiting_citizen_verification') : ?>
+                        <div class="alert alert-warning mt-3 mb-0">KCCA has marked this issue resolved. Please confirm the fix or reopen it if the problem remains.</div>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
         </div>

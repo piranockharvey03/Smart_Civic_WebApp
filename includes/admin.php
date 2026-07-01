@@ -15,10 +15,11 @@ function admin_settings_defaults(): array
             'under_review' => 'Under Review',
             'assigned' => 'Assigned',
             'in_progress' => 'In Progress',
-            'pending' => 'Pending',
             'resolved' => 'Resolved',
+            'awaiting_citizen_verification' => 'Awaiting Citizen Verification',
             'closed' => 'Closed',
             'reopened' => 'Reopened',
+            'rejected' => 'Rejected',
         ], JSON_UNESCAPED_SLASHES),
         'default_priorities' => json_encode([
             'low' => 'Low',
@@ -55,6 +56,12 @@ function admin_permission_seed(): array
         ['key' => 'manage_settings', 'module' => 'settings', 'description' => 'Manage system settings'],
         ['key' => 'view_audit_trail', 'module' => 'audit', 'description' => 'View audit log entries'],
         ['key' => 'view_analytics', 'module' => 'analytics', 'description' => 'View analytics dashboards'],
+        ['key' => 'manage_departments', 'module' => 'departments', 'description' => 'Create and manage departments'],
+        ['key' => 'manage_department_staff', 'module' => 'departments', 'description' => 'Create and manage staff in a department'],
+        ['key' => 'view_department_dashboard', 'module' => 'dashboards', 'description' => 'View departmental dashboards'],
+        ['key' => 'view_department_reports', 'module' => 'reports', 'description' => 'View departmental reports'],
+        ['key' => 'manage_routing_rules', 'module' => 'routing', 'description' => 'Manage category to department mappings'],
+        ['key' => 'view_emergency_dashboard', 'module' => 'emergency', 'description' => 'View emergency dashboards'],
     ];
 }
 
@@ -279,10 +286,19 @@ function admin_seed_role_permissions(): void
         "INSERT IGNORE INTO role_permissions (role_id, permission_id)
          SELECT r.id, p.id
          FROM roles r
-         INNER JOIN permissions p ON p.`key` IN ('view_issues', 'edit_issues', 'assign_issues', 'generate_reports', 'view_analytics', 'view_audit_trail')
+            INNER JOIN permissions p ON p.`key` IN ('view_issues', 'edit_issues', 'assign_issues', 'generate_reports', 'view_analytics', 'view_audit_trail', 'view_department_dashboard', 'view_department_reports', 'view_emergency_dashboard')
          WHERE r.name = 'staff'"
     );
     $staffStmt->execute();
+
+        $managerStmt = db()->prepare(
+           "INSERT IGNORE INTO role_permissions (role_id, permission_id)
+            SELECT r.id, p.id
+            FROM roles r
+            INNER JOIN permissions p ON p.`key` IN ('view_issues', 'edit_issues', 'assign_issues', 'generate_reports', 'view_analytics', 'view_audit_trail', 'manage_department_staff', 'view_department_dashboard', 'view_department_reports', 'view_emergency_dashboard')
+            WHERE r.name = 'department_manager'"
+        );
+        $managerStmt->execute();
 
     $citizenStmt = db()->prepare(
         "INSERT IGNORE INTO role_permissions (role_id, permission_id)

@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($result !== null) {
                 clear_old();
                 set_flash('success', 'Your issue has been submitted successfully. Ticket ' . $result['ticket_number'] . ' has been generated.');
-                redirect(app_url('issues/view.php?id=' . $result['id']));
+                redirect(issue_detail_url((int) $result['id'], current_user_role()));
             }
         } catch (Throwable $throwable) {
             $errors[] = 'The issue could not be submitted right now. Please try again.';

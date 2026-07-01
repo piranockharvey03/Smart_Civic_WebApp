@@ -8,4 +8,10 @@ require_once __DIR__ . '/../config/bootstrap.php';
 set_flash('success', 'You have been logged out.');
 $role = current_user_role();
 logout_user();
-redirect($role === 'citizen' ? app_url('auth/citizen-login.php') : app_url('auth/login.php'));
+$redirectPath = match ($role) {
+	'citizen' => app_url('auth/citizen-login.php'),
+	'department_manager' => app_url('auth/department-manager-login.php'),
+	default => app_url('auth/login.php'),
+};
+
+redirect($redirectPath);

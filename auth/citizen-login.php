@@ -20,6 +20,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = trim((string) ($_POST['email'] ?? ''));
         $password = (string) ($_POST['password'] ?? '');
         $rememberMe = !empty($_POST['remember_me']);
+        $rateLimitScope = 'citizen-login';
+        $rateLimitDimensions = [
+            'email' => mb_strtolower($email),
+            'ip' => (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
+        ];
 
         if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'Enter a valid email address.';
@@ -30,9 +35,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (!$errors) {
+            if (app_rate_limit_is_blocked($rateLimitScope, $rateLimitDimensions, 5, 900)) {
+                $errors[] = 'Too many login attempts. Please wait a few minutes and try again.';
+            }
+
+            if (!$errors) {
             $user = auth_fetch_login_user($email, ['citizen'], 'citizen_profiles');
 
             if ($user && password_verify($password, $user['password'])) {
+                switch_secure_session_namespace(session_namespace_for_role($user['role_name']));
                 login_user($user);
                 persist_user_session($user);
                 clear_old();
@@ -40,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!empty($user['must_change_password'])) {
                     clear_remember_me_cookie();
                     set_flash('warning', 'Please set a new password before continuing.');
-                    redirect(app_url('auth/password-reset.php'));
+                    redirect(app_url('auth/password-reset.php?role=' . urlencode($user['role_name'])));
                 }
 
                 if ($rememberMe) {
@@ -49,11 +60,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     clear_remember_me_cookie();
                 }
 
+                app_rate_limit_clear($rateLimitScope, $rateLimitDimensions);
                 set_flash('success', 'Welcome back, ' . $user['full_name'] . '!');
                 redirect(dashboard_url_for_role($user['role_name']));
             }
 
+            app_rate_limit_record_failure($rateLimitScope, $rateLimitDimensions, 5, 900);
             $errors[] = 'Invalid email or password, or this account must use the staff/admin login page.';
+            }
         }
     }
 
@@ -78,8 +92,8 @@ render_auth_page([
         ['href' => app_url('auth/register.php'), 'label' => 'Create citizen account'],
         ['href' => login_url_for_roles(['admin', 'staff']), 'label' => 'Staff/admin login'],
     ],
-    'footerNote' => 'Citizens can self-register and recover access through the support desk.',
+    'footerNote' => 'Citizens can self-register, reset a forgotten password, or track a ticket without logging in.',
     'footerLinks' => [
-        ['href' => app_url('auth/register.php'), 'label' => 'Register'],
+        ['href' => app_url('auth/forgot-password.php'), 'label' => 'Forgot password'],
     ],
 ]);

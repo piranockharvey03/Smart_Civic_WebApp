@@ -27,6 +27,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 <div class="d-flex flex-wrap gap-2">
                     <a href="<?= e(app_url('citizen/report-issue.php')) ?>" class="btn btn-primary">Submit New Issue</a>
                     <a href="<?= e(app_url('citizen/issues.php')) ?>" class="btn btn-outline-primary">View My Reports</a>
+                    <a href="<?= e(app_url('track-issue.php')) ?>" class="btn btn-outline-secondary">Track by Ticket</a>
                 </div>
             </div>
         </div>
@@ -146,8 +147,9 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 <div class="section-header mb-3">
                     <div>
                         <h2 class="h5 mb-1">Notifications</h2>
-                        <p class="text-muted mb-0">Internal events prepared for future alerts.</p>
+                        <p class="text-muted mb-0">Updates about your submitted issues.</p>
                     </div>
+                    <a href="<?= e(app_url('citizen/notifications.php')) ?>" class="btn btn-sm btn-outline-primary">View all</a>
                 </div>
                 <?php if (!$notifications) : ?>
                     <p class="text-muted mb-0">No notifications have been stored yet.</p>
@@ -168,6 +170,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     <div>
                         <h2 class="h5 mb-1">Profile Summary</h2>
                     </div>
+                    <a href="<?= e(app_url('citizen/profile.php')) ?>" class="btn btn-sm btn-outline-primary">Edit profile</a>
                 </div>
                 <div class="d-grid gap-2 compact-stack">
                     <div class="border rounded-3 p-3">

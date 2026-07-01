@@ -46,7 +46,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         <h1 class="h3 mb-2">Issue oversight and governance</h1>
                         <p class="mb-0 text-muted">Filter tickets by status, priority, staff assignment, category, date range, and location.</p>
                     </div>
-                    <a href="<?= e(app_url('citizen/report-issue.php')) ?>" class="btn btn-primary">View Citizen Intake</a>
+                    <a href="<?= e(app_url('admin/issues.php?status=submitted')) ?>" class="btn btn-primary">View Submitted Queue</a>
                 </div>
             </div>
         </div>
@@ -186,7 +186,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                             <tbody>
                                 <?php foreach ($issuesPage['items'] as $issue) : ?>
                                     <tr>
-                                        <td class="fw-semibold"><a href="<?= e(app_url('issues/view.php?id=' . (int) $issue['id'])) ?>"><?= e($issue['ticket_number']) ?></a></td>
+                                        <td class="fw-semibold"><a href="<?= e(issue_detail_url((int) $issue['id'], current_user_role())) ?>"><?= e($issue['ticket_number']) ?></a></td>
                                         <td><?= e($issue['reporter_name']) ?></td>
                                         <td><?= e($issue['category_name']) ?></td>
                                         <td><span class="issue-badge <?= e(issue_status_badge_class((string) $issue['status'])) ?>"><?= e(issue_status_label((string) $issue['status'])) ?></span></td>
@@ -196,7 +196,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                         <td><?= e(date('d M Y, H:i', strtotime((string) $issue['updated_at']))) ?></td>
                                         <td class="text-end">
                                             <div class="d-flex gap-2 justify-content-end flex-wrap">
-                                                <a class="btn btn-sm btn-outline-primary" href="<?= e(app_url('issues/view.php?id=' . (int) $issue['id'])) ?>">Open</a>
+                                                <a class="btn btn-sm btn-outline-primary" href="<?= e(issue_detail_url((int) $issue['id'], current_user_role())) ?>">Open</a>
                                                 <form method="post" action="<?= e(app_url('admin/trash.php')) ?>" onsubmit="return confirm('Move this issue to trash?');">
                                                     <?= csrf_field() ?>
                                                     <input type="hidden" name="record_type" value="issue">

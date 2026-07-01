@@ -69,6 +69,7 @@ $user = current_user();
         <?php endif; ?>
     </div>
     <?php if (is_logged_in()) : ?>
+        <?php $currentRole = current_user_role(); ?>
         <nav class="navbar navbar-expand-lg navbar-light app-topbar">
             <div class="container-fluid">
                 <button class="btn btn-outline-light d-lg-none me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebar" aria-controls="appSidebar">
@@ -83,11 +84,22 @@ $user = current_user();
                     <div class="d-flex align-items-center gap-2">
                         <span><?= e($user['full_name'] ?? '') ?></span>
                         <span class="badge text-bg-light text-uppercase"><?= e($user['role'] ?? '') ?></span>
-                            <form action="/auth/logout-other.php" method="POST" class="d-inline ms-2" onsubmit="return confirm('Log out other devices? This will end sessions on other devices. Continue?');">
+                            <form action="<?= e(app_url('auth/logout-other.php' . ($currentRole ? '?role=' . urlencode($currentRole) : ''))) ?>" method="POST" class="d-inline ms-2" onsubmit="return confirm('Log out other devices? This will end sessions on other devices. Continue?');">
                             <?= csrf_field() ?>
                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Log out other devices">Log out other devices</button>
                         </form>
                     </div>
+                </div>
+            </div>
+        </nav>
+    <?php else : ?>
+        <nav class="navbar navbar-expand-lg navbar-light app-topbar">
+            <div class="container-fluid">
+                <a class="navbar-brand fw-semibold text-success me-auto" href="<?= e(app_url('index.php')) ?>"><?= e(APP_NAME) ?></a>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <a class="btn btn-sm btn-outline-success" href="<?= e(app_url('auth/register.php')) ?>">Report an Issue</a>
+                    <a class="btn btn-sm btn-outline-secondary" href="<?= e(app_url('track-issue.php')) ?>">Track Ticket</a>
+                    <a class="btn btn-sm btn-primary" href="<?= e(app_url('auth/citizen-login.php')) ?>">Citizen Login</a>
                 </div>
             </div>
         </nav>

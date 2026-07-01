@@ -9,10 +9,11 @@ function issue_status_catalog(): array
         'under_review' => 'Under Review',
         'assigned' => 'Assigned',
         'in_progress' => 'In Progress',
-        'pending' => 'Pending',
         'resolved' => 'Resolved',
+        'awaiting_citizen_verification' => 'Awaiting Citizen Verification',
         'closed' => 'Closed',
         'reopened' => 'Reopened',
+        'rejected' => 'Rejected',
     ];
 
     try {
@@ -50,10 +51,11 @@ function issue_status_badge_class(string $status): string
         'under_review' => 'warning',
         'assigned' => 'info',
         'in_progress' => 'primary',
-        'pending' => 'warning',
         'resolved' => 'success',
+        'awaiting_citizen_verification' => 'warning',
         'closed' => 'dark',
         'reopened' => 'warning',
+        'rejected' => 'danger',
         default => 'secondary',
     };
 }
@@ -207,17 +209,39 @@ function issue_log_action_label(string $action): string
 
 function issue_workflow_statuses(): array
 {
-    return ['submitted', 'under_review', 'assigned', 'in_progress', 'pending', 'resolved', 'closed', 'reopened'];
+    return ['submitted', 'under_review', 'assigned', 'in_progress', 'resolved', 'awaiting_citizen_verification', 'closed', 'reopened', 'rejected'];
 }
 
 function issue_open_statuses(): array
 {
-    return ['submitted', 'under_review', 'assigned', 'in_progress', 'pending', 'reopened'];
+    return ['submitted', 'under_review', 'assigned', 'in_progress', 'awaiting_citizen_verification', 'reopened'];
 }
 
 function issue_resolved_statuses(): array
 {
-    return ['resolved', 'closed'];
+    return ['resolved', 'awaiting_citizen_verification', 'closed'];
+}
+
+function issue_fetch_trackable_issue(string $ticketNumber, string $email): ?array
+{
+    $ticketNumber = trim($ticketNumber);
+    $email = trim(mb_strtolower($email));
+
+    if ($ticketNumber === '' || $email === '') {
+        return null;
+    }
+
+    $issue = issue_fetch_issue_by_ticket($ticketNumber);
+    if (!$issue) {
+        return null;
+    }
+
+    $reporterEmail = trim(mb_strtolower((string) ($issue['reporter_email'] ?? '')));
+    if ($reporterEmail === '' || $reporterEmail !== $email) {
+        return null;
+    }
+
+    return $issue;
 }
 
 function issue_category_seed(): array
@@ -502,7 +526,20 @@ function issue_create_report(int $userId, array $data, array $file, array &$erro
             'id' => $issueId,
         ]);
 
+        if (function_exists('department_route_issue')) {
+            try {
+                department_route_issue($issueId, $categoryId, $userId, false);
+            } catch (Throwable) {
+                // Keep the issue submission intact even if department routing cannot be completed.
+            }
+        }
+
         issue_record_issue_log($issueId, $userId, 'issue_submitted', 'Issue submitted by citizen.');
+
+        issue_create_notification(
+            $userId,
+            'Your issue ' . $ticketNumber . ' was submitted successfully. KCCA will review it shortly.'
+        );
 
         db()->commit();
 
@@ -524,7 +561,7 @@ function issue_create_report(int $userId, array $data, array $file, array &$erro
     }
 }
 
-function issue_fetch_status_counts(?int $userId = null): array
+function issue_fetch_status_counts(?int $userId = null, ?int $departmentId = null): array
 {
     $baseWhere = '';
     $params = [];
@@ -532,6 +569,11 @@ function issue_fetch_status_counts(?int $userId = null): array
     if ($userId !== null) {
         $baseWhere = ' WHERE user_id = :user_id';
         $params['user_id'] = $userId;
+    }
+
+    if ($departmentId !== null && issue_issue_column_exists('department_id')) {
+        $baseWhere = $baseWhere ? $baseWhere . ' AND department_id = :department_id' : ' WHERE department_id = :department_id';
+        $params['department_id'] = $departmentId;
     }
 
     $counts = [
@@ -614,11 +656,15 @@ function issue_fetch_citizen_issue_page(int $userId, int $page = 1, int $perPage
     ];
 }
 
-function issue_fetch_management_issues(array $filters = []): array
+function issue_fetch_management_issues(array $filters = [], ?array $viewer = null): array
 {
     $conditions = [];
     $params = [];
     $hasPriorityColumn = issue_issue_column_exists('priority');
+    $hasDepartmentColumn = issue_issue_column_exists('department_id');
+    $viewer = $viewer ?? current_user();
+    $viewerRole = $viewer['role'] ?? null;
+    $viewerDepartmentId = function_exists('department_current_user_department_id') ? department_current_user_department_id($viewer) : null;
     $deletedFilter = trim((string) ($filters['deleted'] ?? ''));
     $deletedClause = 'i.deleted_at IS NULL';
 
@@ -668,8 +714,18 @@ function issue_fetch_management_issues(array $filters = []): array
         $params['location'] = '%' . trim((string) $filters['location']) . '%';
     }
 
+    if ($viewerRole === 'staff' && !empty($viewer['id'])) {
+        $conditions[] = '(i.assigned_to = :viewer_assigned_to OR i.user_id = :viewer_reporter_id)';
+        $params['viewer_assigned_to'] = (int) $viewer['id'];
+        $params['viewer_reporter_id'] = (int) $viewer['id'];
+    } elseif ($viewerRole === 'department_manager' && $hasDepartmentColumn && $viewerDepartmentId !== null) {
+        $conditions[] = 'i.department_id = :viewer_department_id';
+        $params['viewer_department_id'] = $viewerDepartmentId;
+    }
+
     $sql =
         'SELECT i.*, c.name AS category_name, c.slug AS category_slug,
+            ' . ($hasDepartmentColumn ? 'dept.department_name AS department_name,' : '') . '
             reporter.full_name AS reporter_name,
             reporter.email AS reporter_email,
             assignee.full_name AS assigned_name,
@@ -678,6 +734,7 @@ function issue_fetch_management_issues(array $filters = []): array
          INNER JOIN issue_categories c ON c.id = i.category_id
          INNER JOIN users reporter ON reporter.id = i.user_id' . sql_table_deleted_cond('users', 'reporter') . '
          LEFT JOIN users assignee ON assignee.id = i.assigned_to' . sql_table_deleted_cond('users', 'assignee') . '
+         ' . ($hasDepartmentColumn ? 'LEFT JOIN departments dept ON dept.department_id = i.department_id' : '') . '
          WHERE ' . $deletedClause;
 
     if ($conditions) {
@@ -692,7 +749,7 @@ function issue_fetch_management_issues(array $filters = []): array
     return $stmt->fetchAll();
 }
 
-function issue_fetch_management_issue_page(array $filters = [], int $page = 1, int $perPage = 10): array
+function issue_fetch_management_issue_page(array $filters = [], int $page = 1, int $perPage = 10, ?array $viewer = null): array
 {
     $page = max(1, $page);
     $perPage = max(1, min(100, $perPage));
@@ -700,6 +757,10 @@ function issue_fetch_management_issue_page(array $filters = [], int $page = 1, i
     $conditions = [];
     $params = [];
     $hasPriorityColumn = issue_issue_column_exists('priority');
+    $hasDepartmentColumn = issue_issue_column_exists('department_id');
+    $viewer = $viewer ?? current_user();
+    $viewerRole = $viewer['role'] ?? null;
+    $viewerDepartmentId = function_exists('department_current_user_department_id') ? department_current_user_department_id($viewer) : null;
     $deletedFilter = trim((string) ($filters['deleted'] ?? ''));
     $deletedClause = 'i.deleted_at IS NULL';
 
@@ -749,6 +810,15 @@ function issue_fetch_management_issue_page(array $filters = [], int $page = 1, i
         $params['location'] = '%' . trim((string) $filters['location']) . '%';
     }
 
+    if ($viewerRole === 'staff' && !empty($viewer['id'])) {
+        $conditions[] = '(i.assigned_to = :viewer_assigned_to OR i.user_id = :viewer_reporter_id)';
+        $params['viewer_assigned_to'] = (int) $viewer['id'];
+        $params['viewer_reporter_id'] = (int) $viewer['id'];
+    } elseif ($viewerRole === 'department_manager' && $hasDepartmentColumn && $viewerDepartmentId !== null) {
+        $conditions[] = 'i.department_id = :viewer_department_id';
+        $params['viewer_department_id'] = $viewerDepartmentId;
+    }
+
     $whereSql = $conditions ? ' WHERE ' . implode(' AND ', $conditions) : '';
 
     $countStmt = db()->prepare(
@@ -757,6 +827,7 @@ function issue_fetch_management_issue_page(array $filters = [], int $page = 1, i
          INNER JOIN issue_categories c ON c.id = i.category_id
             INNER JOIN users reporter ON reporter.id = i.user_id' . sql_table_deleted_cond('users', 'reporter') . '
             LEFT JOIN users assignee ON assignee.id = i.assigned_to' . sql_table_deleted_cond('users', 'assignee') . '
+            ' . ($hasDepartmentColumn ? 'LEFT JOIN departments dept ON dept.department_id = i.department_id' : '') . '
             WHERE ' . $deletedClause . ($whereSql ? ' AND ' . ltrim($whereSql, ' WHERE ') : '')
     );
     $countStmt->execute($params);
@@ -774,6 +845,7 @@ function issue_fetch_management_issue_page(array $filters = [], int $page = 1, i
          INNER JOIN issue_categories c ON c.id = i.category_id
          INNER JOIN users reporter ON reporter.id = i.user_id' . sql_table_deleted_cond('users', 'reporter') . '
          LEFT JOIN users assignee ON assignee.id = i.assigned_to' . sql_table_deleted_cond('users', 'assignee') . '
+         ' . ($hasDepartmentColumn ? 'LEFT JOIN departments dept ON dept.department_id = i.department_id' : '') . '
          WHERE ' . $deletedClause .
         ($whereSql ? ' AND ' . ltrim($whereSql, ' WHERE ') : '') .
         ' ORDER BY i.updated_at DESC, i.created_at DESC, i.id DESC
@@ -804,11 +876,18 @@ function issue_fetch_map_issues(array $filters = [], ?int $viewerId = null, ?str
     $conditions = ['i.deleted_at IS NULL', 'i.latitude IS NOT NULL', 'i.longitude IS NOT NULL'];
     $params = [];
     $hasPriorityColumn = issue_issue_column_exists('priority');
+    $hasDepartmentColumn = issue_issue_column_exists('department_id');
 
     if ($viewerRole === 'staff' && $viewerId !== null) {
         $conditions[] = '(i.assigned_to = :viewer_assigned_id OR i.user_id = :viewer_reporter_id)';
         $params['viewer_assigned_id'] = $viewerId;
         $params['viewer_reporter_id'] = $viewerId;
+    } elseif ($viewerRole === 'department_manager' && $viewerId !== null && $hasDepartmentColumn && function_exists('department_current_user_department_id')) {
+        $departmentId = department_current_user_department_id(['id' => $viewerId]);
+        if ($departmentId !== null) {
+            $conditions[] = 'i.department_id = :viewer_department_id';
+            $params['viewer_department_id'] = $departmentId;
+        }
     } elseif ($viewerRole === 'citizen' && $viewerId !== null) {
         $conditions[] = 'i.user_id = :viewer_id';
         $params['viewer_id'] = $viewerId;
@@ -847,6 +926,7 @@ function issue_fetch_map_issues(array $filters = [], ?int $viewerId = null, ?str
         'SELECT i.id, i.ticket_number, i.title, i.description, i.status, ' . ($hasPriorityColumn ? 'i.priority' : "'medium' AS priority") . ',
             i.latitude, i.longitude, i.address, i.location, i.division, i.created_at, i.updated_at,
             c.name AS category_name,
+                ' . ($hasDepartmentColumn ? 'dept.department_name AS department_name,' : '') . '
             reporter.full_name AS reporter_name,
             reporter.email AS reporter_email,
             reporter.division AS reporter_division,
@@ -855,6 +935,7 @@ function issue_fetch_map_issues(array $filters = [], ?int $viewerId = null, ?str
          INNER JOIN issue_categories c ON c.id = i.category_id
          INNER JOIN users reporter ON reporter.id = i.user_id' . sql_table_deleted_cond('users', 'reporter') . '
          LEFT JOIN users assignee ON assignee.id = i.assigned_to' . sql_table_deleted_cond('users', 'assignee') . '
+            ' . ($hasDepartmentColumn ? 'LEFT JOIN departments dept ON dept.department_id = i.department_id' : '') . '
          WHERE ' . implode(' AND ', $conditions) . '
          ORDER BY i.updated_at DESC, i.created_at DESC, i.id DESC
          LIMIT :limit';
@@ -1211,10 +1292,17 @@ function issue_fetch_latest_staff_responses(int $userId, int $limit = 5): array
     return $stmt->fetchAll();
 }
 
-function issue_fetch_staff_workload(): array
+function issue_fetch_staff_workload(?int $departmentId = null): array
 {
     $statusColumn = 'i.status';
-    $stmt = db()->query(
+    $departmentClause = '';
+    $params = [];
+    if ($departmentId !== null && db_column_exists('users', 'department_id')) {
+        $departmentClause = ' AND u.department_id = :department_id';
+        $params['department_id'] = $departmentId;
+    }
+
+    $stmt = db()->prepare(
         "SELECT
             u.id,
             u.full_name,
@@ -1226,10 +1314,16 @@ function issue_fetch_staff_workload(): array
          FROM users u
          INNER JOIN roles r ON r.id = u.role_id
             LEFT JOIN issues i ON i.assigned_to = u.id AND i.deleted_at IS NULL
-                WHERE u.is_active = 1" . sql_table_deleted_cond('users', 'u') . " AND r.name IN ('staff', 'admin')
+                WHERE u.is_active = 1" . sql_table_deleted_cond('users', 'u') . $departmentClause . " AND r.name IN ('staff', 'department_manager', 'admin')
          GROUP BY u.id, u.full_name, u.email
          ORDER BY total_assigned DESC, u.full_name ASC"
     );
+
+    if ($params) {
+        $stmt->execute($params);
+    } else {
+        $stmt->execute();
+    }
 
     return $stmt->fetchAll();
 }
@@ -1348,6 +1442,10 @@ function issue_update_workflow(int $issueId, string $status, ?int $assignedTo, i
         throw new InvalidArgumentException('Invalid workflow status.');
     }
 
+    if ($status === 'resolved') {
+        $status = 'awaiting_citizen_verification';
+    }
+
     $validPriorities = array_keys(issue_priority_catalog());
     if ($priority !== null && !in_array($priority, $validPriorities, true)) {
         throw new InvalidArgumentException('Invalid issue priority.');
@@ -1357,6 +1455,8 @@ function issue_update_workflow(int $issueId, string $status, ?int $assignedTo, i
     $hasResolutionNotesColumn = issue_issue_column_exists('resolution_notes');
     $hasResolvedAtColumn = issue_issue_column_exists('resolved_at');
     $hasReopenedAtColumn = issue_issue_column_exists('reopened_at');
+    $hasCitizenVerifiedAtColumn = issue_issue_column_exists('citizen_verified_at');
+    $hasClosedAtColumn = issue_issue_column_exists('closed_at');
 
     db()->beginTransaction();
 
@@ -1397,6 +1497,14 @@ function issue_update_workflow(int $issueId, string $status, ?int $assignedTo, i
             $updateParams['status_reopened'] = $status === 'reopened' ? 1 : 0;
         }
 
+        if ($hasCitizenVerifiedAtColumn && $status === 'closed') {
+            $setParts[] = 'citizen_verified_at = COALESCE(citizen_verified_at, CURRENT_TIMESTAMP)';
+        }
+
+        if ($hasClosedAtColumn && $status === 'closed') {
+            $setParts[] = 'closed_at = COALESCE(closed_at, CURRENT_TIMESTAMP)';
+        }
+
         $update = db()->prepare('UPDATE issues SET ' . implode(', ', $setParts) . ' WHERE id = :id');
         $update->execute($updateParams);
 
@@ -1432,9 +1540,15 @@ function issue_update_workflow(int $issueId, string $status, ?int $assignedTo, i
         $reporterId = (int) ($issue['user_id'] ?? 0);
 
         if ($reporterId > 0) {
+            $statusMessage = match ($status) {
+                'awaiting_citizen_verification' => 'Your issue ' . ($issue['ticket_number'] ?? '') . ' has been marked resolved. Please confirm or reopen it.',
+                'closed' => 'Your issue ' . ($issue['ticket_number'] ?? '') . ' has been closed.',
+                'reopened' => 'Your issue ' . ($issue['ticket_number'] ?? '') . ' was reopened for follow-up.',
+                default => 'Your issue ' . ($issue['ticket_number'] ?? '') . ' was updated.',
+            };
             $notifications[] = [
                 'user_id' => $reporterId,
-                'message' => 'Your issue ' . ($issue['ticket_number'] ?? '') . ' was updated.',
+                'message' => $statusMessage,
             ];
         }
 

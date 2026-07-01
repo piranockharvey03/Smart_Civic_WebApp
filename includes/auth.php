@@ -21,6 +21,7 @@ function dashboard_url_for_role(?string $role): string
 {
     return match ($role) {
         'admin' => app_url('admin/dashboard.php'),
+        'department_manager' => app_url('department-manager/dashboard.php'),
         'staff' => app_url('staff/dashboard.php'),
         default => app_url('citizen/dashboard.php'),
     };
@@ -28,9 +29,17 @@ function dashboard_url_for_role(?string $role): string
 
 function login_url_for_roles(array $allowedRoles = []): string
 {
-    return (count($allowedRoles) === 1 && $allowedRoles[0] === 'citizen')
-        ? app_url('auth/citizen-login.php')
-        : app_url('auth/login.php');
+    if (count($allowedRoles) === 1) {
+        if ($allowedRoles[0] === 'citizen') {
+            return app_url('auth/citizen-login.php');
+        }
+
+        if ($allowedRoles[0] === 'department_manager') {
+            return app_url('auth/department-manager-login.php');
+        }
+    }
+
+    return app_url('auth/login.php');
 }
 
 function remember_me_cookie_name(): string
@@ -75,7 +84,9 @@ function remember_me_tokens_table_exists(): bool
 function auth_fetch_login_user_by_id(int $userId, string $profileTable): ?array
 {
     $hasResetColumn = db_column_exists('users', 'must_change_password');
+    $hasDepartmentColumn = db_column_exists('users', 'department_id');
     $resetSelect = $hasResetColumn ? ', u.must_change_password' : ', 0 AS must_change_password';
+    $departmentSelect = $hasDepartmentColumn ? ', u.department_id' : ', NULL AS department_id';
     $deletedFilter = db_column_exists('users', 'deleted_at') ? ' AND u.deleted_at IS NULL' : '';
 
     $profileJoin = '';
@@ -90,6 +101,7 @@ function auth_fetch_login_user_by_id(int $userId, string $profileTable): ?array
     $sql =
         'SELECT u.id, u.full_name, u.email, u.password, u.role_id' .
         $resetSelect .
+        $departmentSelect .
         $profileSelect .
         ', r.name AS role_name
          FROM users u
@@ -121,7 +133,9 @@ function auth_fetch_login_user(string $email, array $allowedRoles, string $profi
     }
 
     $hasResetColumn = db_column_exists('users', 'must_change_password');
+    $hasDepartmentColumn = db_column_exists('users', 'department_id');
     $resetSelect = $hasResetColumn ? ', u.must_change_password' : ', 0 AS must_change_password';
+    $departmentSelect = $hasDepartmentColumn ? ', u.department_id' : ', NULL AS department_id';
     $deletedFilter = db_column_exists('users', 'deleted_at') ? ' AND u.deleted_at IS NULL' : '';
 
     $profileJoin = '';
@@ -138,6 +152,7 @@ function auth_fetch_login_user(string $email, array $allowedRoles, string $profi
     $sql =
         'SELECT u.id, u.full_name, u.email, u.password, u.role_id' .
         $resetSelect .
+        $departmentSelect .
         $profileSelect .
         ', r.name AS role_name
          FROM users u
@@ -337,6 +352,7 @@ function attempt_remember_me_login(): bool
     );
     $touch->execute(['selector' => $parts['selector']]);
 
+    switch_secure_session_namespace(session_namespace_for_role((string) ($user['role_name'] ?? '')));
     login_user($user);
     persist_user_session($user);
 
@@ -354,6 +370,7 @@ function login_user(array $user): void
         'role' => $user['role_name'],
         'role_id' => (int) $user['role_id'],
         'division' => $user['division'] ?? null,
+        'department_id' => isset($user['department_id']) && $user['department_id'] !== null ? (int) $user['department_id'] : null,
         'must_change_password' => !empty($user['must_change_password']) ? 1 : 0,
     ];
 }
@@ -464,4 +481,226 @@ function require_role(array $allowedRoles): void
         http_response_code(403);
         app_render_error_page(403, '403 Forbidden', 'You do not have permission to access this page.');
     }
+}
+
+function user_has_permission(?int $userId, string $permissionKey): bool
+{
+    if ($userId === null || $userId < 1 || !issue_table_exists('role_permissions')) {
+        return false;
+    }
+
+    try {
+        $stmt = db()->prepare(
+            'SELECT 1
+             FROM users u
+             INNER JOIN role_permissions rp ON rp.role_id = u.role_id
+             INNER JOIN permissions p ON p.id = rp.permission_id
+             WHERE u.id = :user_id AND p.`key` = :permission_key
+             LIMIT 1'
+        );
+        $stmt->execute([
+            'user_id' => $userId,
+            'permission_key' => $permissionKey,
+        ]);
+
+        return (bool) $stmt->fetchColumn();
+    } catch (Throwable) {
+        return false;
+    }
+}
+
+function require_permission(string $permissionKey): void
+{
+    require_login();
+
+    $userId = isset($_SESSION['user']['id']) ? (int) $_SESSION['user']['id'] : null;
+
+    if (!user_has_permission($userId, $permissionKey)) {
+        app_log_system_event(
+            'security',
+            'warning',
+            'Unauthorized permission access blocked',
+            [
+                'permission_key' => $permissionKey,
+                'current_role' => current_user_role(),
+                'path' => $_SERVER['REQUEST_URI'] ?? null,
+            ],
+            $userId,
+            __FUNCTION__
+        );
+
+        http_response_code(403);
+        app_render_error_page(403, '403 Forbidden', 'You do not have permission to access this action.');
+    }
+}
+
+function password_reset_tokens_table_exists(): bool
+{
+    return issue_table_exists('password_reset_tokens');
+}
+
+function auth_request_password_reset(string $email): ?string
+{
+    if (!password_reset_tokens_table_exists()) {
+        return null;
+    }
+
+    $email = trim(mb_strtolower($email));
+    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return null;
+    }
+
+    $stmt = db()->prepare(
+        'SELECT u.id, r.name AS role_name
+         FROM users u
+         INNER JOIN roles r ON r.id = u.role_id
+         WHERE LOWER(u.email) = :email AND u.is_active = 1
+         LIMIT 1'
+    );
+    $stmt->execute(['email' => $email]);
+    $user = $stmt->fetch();
+
+    if (!is_array($user)) {
+        return null;
+    }
+
+    $token = bin2hex(random_bytes(32));
+    $expiresAt = (new DateTimeImmutable('now'))->modify('+1 hour')->format('Y-m-d H:i:s');
+
+    $invalidate = db()->prepare(
+        'UPDATE password_reset_tokens
+         SET used_at = CURRENT_TIMESTAMP
+         WHERE user_id = :user_id AND used_at IS NULL'
+    );
+    $invalidate->execute(['user_id' => (int) $user['id']]);
+
+    $insert = db()->prepare(
+        'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+         VALUES (:user_id, :token_hash, :expires_at)'
+    );
+    $insert->execute([
+        'user_id' => (int) $user['id'],
+        'token_hash' => hash('sha256', $token),
+        'expires_at' => $expiresAt,
+    ]);
+
+    return $token;
+}
+
+function auth_validate_password_reset_token(string $token): ?array
+{
+    if (!password_reset_tokens_table_exists()) {
+        return null;
+    }
+
+    $token = trim($token);
+    if ($token === '') {
+        return null;
+    }
+
+    $stmt = db()->prepare(
+        'SELECT t.user_id, t.expires_at, t.used_at, u.email, u.full_name, r.name AS role_name
+         FROM password_reset_tokens t
+         INNER JOIN users u ON u.id = t.user_id
+         INNER JOIN roles r ON r.id = u.role_id
+         WHERE t.token_hash = :token_hash
+         LIMIT 1'
+    );
+    $stmt->execute(['token_hash' => hash('sha256', $token)]);
+    $row = $stmt->fetch();
+
+    if (!is_array($row) || !empty($row['used_at'])) {
+        return null;
+    }
+
+    $expiresAt = strtotime((string) ($row['expires_at'] ?? ''));
+    if ($expiresAt === false || $expiresAt < time()) {
+        return null;
+    }
+
+    return $row;
+}
+
+function auth_complete_password_reset(string $token, string $password): bool
+{
+    $reset = auth_validate_password_reset_token($token);
+    if ($reset === null || mb_strlen($password) < 8) {
+        return false;
+    }
+
+    $hasResetColumn = db_column_exists('users', 'must_change_password');
+    $sql = 'UPDATE users SET password = :password' . ($hasResetColumn ? ', must_change_password = 0' : '') . ' WHERE id = :id';
+    $update = db()->prepare($sql);
+    $update->execute([
+        'password' => password_hash($password, PASSWORD_DEFAULT),
+        'id' => (int) $reset['user_id'],
+    ]);
+
+    $markUsed = db()->prepare(
+        'UPDATE password_reset_tokens
+         SET used_at = CURRENT_TIMESTAMP
+         WHERE token_hash = :token_hash AND used_at IS NULL'
+    );
+    $markUsed->execute(['token_hash' => hash('sha256', $token)]);
+
+    revoke_remember_me_token();
+
+    return true;
+}
+
+function auth_fetch_citizen_profile(int $userId): ?array
+{
+    $stmt = db()->prepare(
+        'SELECT u.id, u.full_name, u.email, cp.phone, cp.division, cp.address, cp.ward, cp.national_id
+         FROM users u
+         LEFT JOIN citizen_profiles cp ON cp.user_id = u.id
+         WHERE u.id = :id
+         LIMIT 1'
+    );
+    $stmt->execute(['id' => $userId]);
+    $profile = $stmt->fetch();
+
+    return is_array($profile) ? $profile : null;
+}
+
+function auth_update_citizen_profile(int $userId, array $data, array &$errors): bool
+{
+    $phone = trim((string) ($data['phone'] ?? ''));
+    $division = trim((string) ($data['division'] ?? ''));
+    $address = trim((string) ($data['address'] ?? ''));
+    $ward = trim((string) ($data['ward'] ?? ''));
+    $nationalId = trim((string) ($data['national_id'] ?? ''));
+
+    if ($phone !== '' && !preg_match('/^[0-9+\-\s]{7,20}$/', $phone)) {
+        $errors[] = 'Enter a valid phone number.';
+    }
+
+    if ($errors) {
+        return false;
+    }
+
+    $profileUpdate = db()->prepare(
+        'INSERT INTO citizen_profiles (user_id, phone, division, address, ward, national_id)
+         VALUES (:user_id, :phone, :division, :address, :ward, :national_id)
+         ON DUPLICATE KEY UPDATE
+            phone = VALUES(phone),
+            division = VALUES(division),
+            address = VALUES(address),
+            ward = VALUES(ward),
+            national_id = VALUES(national_id)'
+    );
+    $profileUpdate->execute([
+        'user_id' => $userId,
+        'phone' => $phone !== '' ? $phone : null,
+        'division' => $division !== '' ? $division : null,
+        'address' => $address !== '' ? $address : null,
+        'ward' => $ward !== '' ? $ward : null,
+        'national_id' => $nationalId !== '' ? $nationalId : null,
+    ]);
+
+    if (isset($_SESSION['user']) && (int) $_SESSION['user']['id'] === $userId) {
+        $_SESSION['user']['division'] = $division !== '' ? $division : null;
+    }
+
+    return true;
 }

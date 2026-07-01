@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = trim((string) ($_POST['email'] ?? ''));
         $password = (string) ($_POST['password'] ?? '');
         $rememberMe = !empty($_POST['remember_me']);
-        $rateLimitScope = 'staff-admin-login';
+        $rateLimitScope = 'department-manager-login';
         $rateLimitDimensions = [
             'email' => mb_strtolower($email),
             'ip' => (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
@@ -40,13 +40,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if (!$errors) {
-            $user = auth_fetch_login_user($email, ['admin', 'department_manager', 'staff'], 'staff_profiles');
+            $user = auth_fetch_login_user($email, ['department_manager'], 'staff_profiles');
 
             if ($user && password_verify($password, $user['password'])) {
                 switch_secure_session_namespace(session_namespace_for_role($user['role_name']));
                 login_user($user);
                 persist_user_session($user);
                 clear_old();
+
                 if (!empty($user['must_change_password'])) {
                     clear_remember_me_cookie();
                     set_flash('warning', 'Please set a new password before continuing.');
@@ -65,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             app_rate_limit_record_failure($rateLimitScope, $rateLimitDimensions, 5, 900);
-            $errors[] = 'Invalid email or password, or this account must use the citizen login page.';
+            $errors[] = 'Invalid email or password, or this account must use a different login page.';
             }
         }
     }
@@ -74,25 +75,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 render_auth_page([
-    'pageTitle' => APP_NAME . ' | Login',
+    'pageTitle' => APP_NAME . ' | Department Manager Login',
     'sidebarTitle' => 'KCCA Smart Civic App',
-    'sidebarHeading' => 'Staff & Admin Login',
-    'sidebarDescription' => 'Secure access for staff and administrators only.',
-    'mainHeading' => 'Sign in to your account',
-    'mainDescription' => 'Use your staff or administrator credentials to access services.',
+    'sidebarHeading' => 'Department Manager Login',
+    'sidebarDescription' => 'Secure access for department managers overseeing departmental operations.',
+    'mainHeading' => 'Sign in to your department portal',
+    'mainDescription' => 'Use your department manager credentials to access department issues, staff, and dashboards.',
     'supportText' => 'Kampala Capital City Authority',
     'formAction' => '',
     'emailValue' => $email,
     'errors' => $errors,
     'submitLabel' => 'Login',
-    'linkGapClass' => 'd-flex justify-content-between align-items-center mb-4',
+    'linkGapClass' => 'd-flex justify-content-between align-items-center mb-4 flex-wrap gap-2',
     'rememberMeChecked' => $rememberMe,
     'links' => [
-        ['href' => app_url('auth/department-manager-login.php'), 'label' => 'Department manager login'],
+        ['href' => app_url('auth/login.php'), 'label' => 'Staff/admin login'],
         ['href' => app_url('auth/citizen-login.php'), 'label' => 'Citizen login'],
     ],
-    'footerNote' => 'Need help accessing your account? Contact your system administrator.',
+    'footerNote' => 'Department managers use the same credentials as other internal users, but land in the department portal after login.',
     'footerLinks' => [
-        ['href' => app_url('auth/password-reset.php'), 'label' => 'Reset password'],
+        ['href' => app_url('auth/forgot-password.php'), 'label' => 'Forgot password'],
     ],
 ]);

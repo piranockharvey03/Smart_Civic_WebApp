@@ -11,3 +11,9 @@ Run this once after applying the updated schema in `database/schema.sql`.
 Clears duplicated `phone` and `division` values from `users` after profile rows are populated.
 
 Run this after the backfill migration.
+
+## 2026_07_01_add_app_cache_table.sql
+
+Adds the shared `app_cache` table used for persistent cache entries and login rate limiting.
+
+Run this after the base schema and before enabling cache-aware helpers.

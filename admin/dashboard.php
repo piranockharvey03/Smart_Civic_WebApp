@@ -107,7 +107,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         <?php foreach ($latestIssues as $issue) : ?>
                             <div class="border rounded-3 p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
                                 <div>
-                                    <div class="fw-semibold"><a href="<?= e(app_url('issues/view.php?id=' . (int) $issue['id'])) ?>"><?= e($issue['ticket_number']) ?></a> - <?= e($issue['title']) ?></div>
+                                    <div class="fw-semibold"><a href="<?= e(issue_detail_url((int) $issue['id'], current_user_role())) ?>"><?= e($issue['ticket_number']) ?></a> - <?= e($issue['title']) ?></div>
                                     <div class="small text-muted"><?= e($issue['category_name']) ?> | <?= e($issue['location']) ?> | <?= e($issue['reporter_name']) ?></div>
                                 </div>
                                 <div class="d-flex gap-2 flex-wrap">
@@ -134,7 +134,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         <?php foreach ($pendingQueue['items'] as $issue) : ?>
                             <div class="border rounded-3 p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
                                 <div>
-                                    <div class="fw-semibold"><a href="<?= e(app_url('issues/view.php?id=' . (int) $issue['id'])) ?>"><?= e($issue['ticket_number']) ?></a></div>
+                                    <div class="fw-semibold"><a href="<?= e(issue_detail_url((int) $issue['id'], current_user_role())) ?>"><?= e($issue['ticket_number']) ?></a></div>
                                     <div class="small text-muted"><?= e($issue['category_name']) ?> | <?= e($issue['reporter_name']) ?></div>
                                 </div>
                                 <span class="issue-badge <?= e(issue_status_badge_class((string) $issue['status'])) ?>"><?= e(issue_status_label((string) $issue['status'])) ?></span>

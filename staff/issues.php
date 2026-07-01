@@ -49,7 +49,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         <h1 class="h3 mb-2">My assigned civic issues</h1>
                         <p class="mb-0 text-muted">Track your assigned tickets, update their progress, and add response notes.</p>
                     </div>
-                    <a href="<?= e(app_url('issues/view.php?id=' . (int) ($issuesPage['items'][0]['id'] ?? 0))) ?>" class="btn btn-primary">Open Latest Assignment</a>
+                    <a href="<?= e(issue_detail_url((int) ($issuesPage['items'][0]['id'] ?? 0), current_user_role())) ?>" class="btn btn-primary">Open Latest Assignment</a>
                 </div>
             </div>
         </div>
@@ -173,14 +173,14 @@ require_once __DIR__ . '/../includes/sidebar.php';
                             <tbody>
                                 <?php foreach ($issuesPage['items'] as $issue) : ?>
                                     <tr>
-                                        <td class="fw-semibold"><a href="<?= e(app_url('issues/view.php?id=' . (int) $issue['id'])) ?>"><?= e($issue['ticket_number']) ?></a></td>
+                                        <td class="fw-semibold"><a href="<?= e(issue_detail_url((int) $issue['id'], current_user_role())) ?>"><?= e($issue['ticket_number']) ?></a></td>
                                         <td><?= e($issue['category_name']) ?></td>
                                         <td><?= e($issue['title']) ?></td>
                                         <td><span class="issue-badge <?= e(issue_status_badge_class((string) $issue['status'])) ?>"><?= e(issue_status_label((string) $issue['status'])) ?></span></td>
                                         <td><span class="issue-badge <?= e(issue_priority_badge_class((string) ($issue['priority'] ?? 'medium'))) ?>"><?= e(issue_priority_label((string) ($issue['priority'] ?? 'medium'))) ?></span></td>
                                         <td><?= e($issue['location']) ?></td>
                                         <td><?= e(date('d M Y, H:i', strtotime((string) $issue['updated_at']))) ?></td>
-                                        <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="<?= e(app_url('issues/view.php?id=' . (int) $issue['id'])) ?>">Open</a></td>
+                                        <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="<?= e(issue_detail_url((int) $issue['id'], current_user_role())) ?>">Open</a></td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>

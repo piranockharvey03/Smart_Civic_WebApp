@@ -18,6 +18,7 @@ require_once __DIR__ . '/session.php';
 require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/logging.php';
+require_once __DIR__ . '/../includes/departments.php';
 require_once __DIR__ . '/../includes/issues.php';
 require_once __DIR__ . '/../includes/admin.php';
 require_once __DIR__ . '/../includes/auth.php';
@@ -33,7 +34,9 @@ if (!is_logged_in()) {
 
 if (is_logged_in() && current_user_must_change_password()) {
     $scriptName = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
-    if (!in_array($scriptName, ['password-reset.php', 'logout.php'], true)) {
-        redirect(app_url('auth/password-reset.php'));
+    if (!in_array($scriptName, ['password-reset.php', 'forgot-password.php', 'reset-password.php', 'logout.php', 'logout-other.php'], true)) {
+        $role = current_user_role();
+        $roleQuery = $role ? '?role=' . urlencode($role) : '';
+        redirect(app_url('auth/password-reset.php' . $roleQuery));
     }
 }

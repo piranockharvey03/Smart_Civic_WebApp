@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/bootstrap.php';
-require_role(['staff', 'admin']);
+require_role(['staff', 'department_manager', 'admin']);
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -16,6 +16,7 @@ $filters = [
     'category_id' => trim((string) ($_GET['category_id'] ?? '')),
     'division' => trim((string) ($_GET['division'] ?? '')),
     'query' => trim((string) ($_GET['query'] ?? '')),
+    'department_id' => trim((string) ($_GET['department_id'] ?? '')),
 ];
 
 $issues = issue_fetch_map_issues($filters, (int) $user['id'], (string) $role, 1500);
@@ -39,6 +40,7 @@ $payload = [
             'category_name' => (string) $issue['category_name'],
             'reporter_name' => (string) $issue['reporter_name'],
             'assigned_name' => (string) ($issue['assigned_name'] ?? ''),
+            'department_name' => (string) ($issue['department_name'] ?? ''),
             'created_at' => (string) $issue['created_at'],
             'updated_at' => (string) $issue['updated_at'],
             'heat_weight' => match ((string) ($issue['priority'] ?? 'medium')) {
@@ -49,7 +51,7 @@ $payload = [
                 default => 0.5,
             },
             'status_tier' => issue_map_status_tier((string) $issue['status']),
-            'issue_url' => app_url('issues/view.php?id=' . (int) $issue['id']),
+            'issue_url' => issue_detail_url((int) $issue['id'], current_user_role()),
         ];
     }, $issues),
 ];

@@ -4,26 +4,31 @@ declare(strict_types=1);
 
 $role = current_user_role();
 $activePage = $activePage ?? '';
+$roleQuery = $role ? '?role=' . urlencode($role) : '';
 $dashboardLink = match ($role) {
     'admin' => app_url('admin/dashboard.php'),
+    'department_manager' => app_url('department-manager/dashboard.php'),
     'staff' => app_url('staff/dashboard.php'),
     default => app_url('citizen/dashboard.php'),
 };
 
 $issueListLink = match ($role) {
     'admin' => app_url('admin/issues.php'),
+    'department_manager' => app_url('department-manager/issues.php'),
     'staff' => app_url('staff/issues.php'),
     default => app_url('citizen/issues.php'),
 };
 
 $issueQueueLink = match ($role) {
     'admin' => app_url('admin/issues.php?status=submitted'),
+    'department_manager' => app_url('department-manager/issues.php?status=submitted'),
     'staff' => app_url('staff/issues.php?status=submitted'),
     default => app_url('citizen/report-issue.php'),
 };
 
 $issueMapLink = match ($role) {
     'admin' => app_url('issues/map.php'),
+    'department_manager' => app_url('issues/map.php'),
     'staff' => app_url('staff/map.php'),
     default => null,
 };
@@ -51,11 +56,20 @@ $sidebarLogoUrl = app_url('KCCA.png');
                 <?php if ($role === 'citizen') : ?>
                     <a class="nav-link <?= ($activePage === 'citizen-issues') ? 'active' : '' ?>" href="<?= e($issueListLink) ?>">My Reports</a>
                     <a class="nav-link <?= ($activePage === 'citizen-report') ? 'active' : '' ?>" href="<?= e($issueQueueLink) ?>">Submit Report</a>
+                    <a class="nav-link <?= ($activePage === 'citizen-notifications') ? 'active' : '' ?>" href="<?= e(app_url('citizen/notifications.php')) ?>">Notifications</a>
+                    <a class="nav-link <?= ($activePage === 'citizen-profile') ? 'active' : '' ?>" href="<?= e(app_url('citizen/profile.php')) ?>">Profile</a>
                 <?php elseif ($role === 'staff') : ?>
                     <a class="nav-link <?= ($activePage === 'staff-issues') ? 'active' : '' ?>" href="<?= e($issueListLink) ?>">Issue Management</a>
                     <a class="nav-link" href="<?= e($issueQueueLink) ?>">Submitted Queue</a>
                     <?php if ($issueMapLink) : ?>
                         <a class="nav-link <?= ($activePage === 'staff-map') ? 'active' : '' ?>" href="<?= e($issueMapLink) ?>">Issue Map</a>
+                    <?php endif; ?>
+                <?php elseif ($role === 'department_manager') : ?>
+                    <a class="nav-link <?= ($activePage === 'department-manager-issues') ? 'active' : '' ?>" href="<?= e($issueListLink) ?>">Department Issues</a>
+                    <a class="nav-link <?= ($activePage === 'department-manager-staff') ? 'active' : '' ?>" href="<?= e(app_url('department-manager/staff.php')) ?>">Staff Management</a>
+                    <a class="nav-link" href="<?= e($issueQueueLink) ?>">Submitted Queue</a>
+                    <?php if ($issueMapLink) : ?>
+                        <a class="nav-link <?= ($activePage === 'department-manager-map') ? 'active' : '' ?>" href="<?= e($issueMapLink) ?>">Department Map</a>
                     <?php endif; ?>
                 <?php elseif ($role === 'admin') : ?>
                     <a class="nav-link <?= ($activePage === 'admin-issues') ? 'active' : '' ?>" href="<?= e($issueListLink) ?>">Issue Management</a>
@@ -63,6 +77,7 @@ $sidebarLogoUrl = app_url('KCCA.png');
                     <?php if ($issueMapLink) : ?>
                         <a class="nav-link <?= ($activePage === 'issue-map') ? 'active' : '' ?>" href="<?= e($issueMapLink) ?>">Issue Map</a>
                     <?php endif; ?>
+                    <a class="nav-link <?= ($activePage === 'admin-departments') ? 'active' : '' ?>" href="<?= e(app_url('admin/departments.php')) ?>">Departments</a>
                     <a class="nav-link <?= ($activePage === 'admin-reports') ? 'active' : '' ?>" href="<?= e(app_url('admin/reports.php')) ?>">Reports</a>
                     <a class="nav-link <?= ($activePage === 'admin-analytics') ? 'active' : '' ?>" href="<?= e(app_url('admin/analytics.php')) ?>">Analytics</a>
                     <a class="nav-link <?= ($activePage === 'admin-users') ? 'active' : '' ?>" href="<?= e(app_url('admin/users.php')) ?>">Users</a>
@@ -76,7 +91,7 @@ $sidebarLogoUrl = app_url('KCCA.png');
                     <a class="nav-link <?= ($activePage === 'admin-notifications') ? 'active' : '' ?>" href="<?= e(app_url('admin/notifications.php')) ?>">Notifications</a>
                     <a class="nav-link <?= ($activePage === 'admin-backup') ? 'active' : '' ?>" href="<?= e(app_url('admin/backup.php')) ?>">Backup Center</a>
                 <?php endif; ?>
-                <a class="nav-link text-danger" href="<?= e(app_url('auth/logout.php')) ?>">
+                <a class="nav-link text-danger" href="<?= e(app_url('auth/logout.php' . $roleQuery)) ?>">
                     Logout
                 </a>
             </nav>

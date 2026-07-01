@@ -105,7 +105,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                         <td><?= e($issue['location']) ?></td>
                                         <td><?= e(date('d M Y, H:i', strtotime((string) $issue['created_at']))) ?></td>
                                         <td class="text-end">
-                                            <a class="btn btn-sm btn-outline-primary" href="<?= e(app_url('issues/view.php?id=' . (int) $issue['id'])) ?>">View</a>
+                                            <a class="btn btn-sm btn-outline-primary" href="<?= e(issue_detail_url((int) $issue['id'], current_user_role())) ?>">View</a>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>

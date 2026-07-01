@@ -17,9 +17,18 @@ $role = current_user_role();
 $user = current_user();
 $isCitizenOwner = $role === 'citizen' && (int) $issue['user_id'] === (int) $user['id'];
 $isAssignedStaff = $role === 'staff' && (int) ($issue['assigned_to'] ?? 0) === (int) $user['id'];
-$canManage = in_array((string) $role, ['staff', 'admin'], true);
+$viewerDepartmentId = function_exists('department_current_user_department_id') ? department_current_user_department_id($user) : null;
+$isDepartmentManager = $role === 'department_manager'
+    && $viewerDepartmentId !== null
+    && isset($issue['department_id'])
+    && (int) $issue['department_id'] === $viewerDepartmentId;
+$canManage = in_array((string) $role, ['staff', 'admin'], true) || $isDepartmentManager;
+$canViewImage = $role === 'admin'
+    || $isCitizenOwner
+    || ($role === 'staff' && ($isAssignedStaff || $canManage))
+    || $isDepartmentManager;
 
-if (($role === 'citizen' && !$isCitizenOwner) || ($role === 'staff' && !$isAssignedStaff && !$canManage)) {
+if (!$canViewImage) {
     http_response_code(403);
     exit;
 }

@@ -97,9 +97,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'ward' => $data['ward'] !== '' ? $data['ward'] : null,
                 ]);
 
+                $user = auth_fetch_login_user_by_id($userId, 'citizen_profiles');
+                if ($user) {
+                    switch_secure_session_namespace(session_namespace_for_role('citizen'));
+                    login_user($user);
+                    persist_user_session($user);
+                }
+
                 clear_old();
-                set_flash('success', 'Registration successful. Please log in.');
-                redirect(app_url('auth/citizen-login.php'));
+                set_flash('success', 'Welcome, ' . $data['full_name'] . '! Your account is ready. Submit your first report below.');
+                redirect(app_url('citizen/report-issue.php'));
             }
         }
     }
@@ -173,6 +180,7 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
                 <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
                     <a href="<?= e(app_url('auth/citizen-login.php')) ?>">Already have an account?</a>
+                    <a href="<?= e(app_url('track-issue.php')) ?>">Track a ticket</a>
                 </div>
                 <button type="submit" class="btn btn-primary btn-lg w-100">Create Account</button>
             </form>
