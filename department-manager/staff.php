@@ -10,6 +10,11 @@ $departmentId = department_current_user_department_id($user);
 $errors = [];
 $message = null;
 
+// Validate department before processing
+if ($departmentId === null) {
+    $errors[] = 'You are not assigned to a department. Please contact an administrator to assign you to a department before managing staff.';
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
         $errors[] = 'Invalid security token.';

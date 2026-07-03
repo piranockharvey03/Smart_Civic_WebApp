@@ -49,6 +49,24 @@ body.app-shell {
     background: var(--app-white);
 }
 
+@media (min-width: 992px) {
+    .offcanvas-lg {
+        position: static !important;
+        visibility: visible !important;
+        transform: none !important;
+        transition: none !important;
+    }
+    
+    .offcanvas-lg .offcanvas-header {
+        display: none;
+    }
+    
+    .offcanvas-lg .offcanvas-body {
+        padding: 0;
+        overflow: visible;
+    }
+}
+
 .sidebar {
     color: var(--app-ink);
 }
@@ -65,7 +83,7 @@ body.app-shell {
     color: var(--app-ink);
     border: 3px solid var(--app-border);
     padding: 0.25rem;
-    margin-left: 3.25rem;
+    margin-left: 0;
     position: relative;
     overflow: hidden;
     max-height: 88px;
@@ -118,7 +136,7 @@ body.app-shell {
 .sidebar .nav-link {
     color: var(--app-green);
     border-radius: 12px;
-    padding: 0.3rem 4rem;
+    padding: 0.5rem 1rem;
     transition: background-color 0.15s ease, color 0.15s ease;
     font-weight: 400;
 }

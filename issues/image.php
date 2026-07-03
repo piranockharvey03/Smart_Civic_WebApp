@@ -18,10 +18,20 @@ $user = current_user();
 $isCitizenOwner = $role === 'citizen' && (int) $issue['user_id'] === (int) $user['id'];
 $isAssignedStaff = $role === 'staff' && (int) ($issue['assigned_to'] ?? 0) === (int) $user['id'];
 $viewerDepartmentId = function_exists('department_current_user_department_id') ? department_current_user_department_id($user) : null;
-$isDepartmentManager = $role === 'department_manager'
-    && $viewerDepartmentId !== null
-    && isset($issue['department_id'])
-    && (int) $issue['department_id'] === $viewerDepartmentId;
+
+// Department manager can access if:
+// 1. Issue has a matching department_id, OR
+// 2. Issue belongs to their department's categories (for unrouted issues)
+$isDepartmentManager = false;
+if ($role === 'department_manager' && $viewerDepartmentId !== null) {
+    $isDepartmentManager = isset($issue['department_id']) && (int) $issue['department_id'] === $viewerDepartmentId;
+    
+    // Also check if the issue category belongs to this manager's department (for unrouted issues)
+    if (!$isDepartmentManager && function_exists('department_category_belongs_to_department')) {
+        $isDepartmentManager = department_category_belongs_to_department((int) $issue['category_id'], $viewerDepartmentId);
+    }
+}
+
 $canManage = in_array((string) $role, ['staff', 'admin'], true) || $isDepartmentManager;
 $canViewImage = $role === 'admin'
     || $isCitizenOwner

@@ -90,10 +90,28 @@ function start_secure_session(): void
 function switch_secure_session_namespace(string $namespace): void
 {
     if (session_status() === PHP_SESSION_ACTIVE) {
+        // Preserve current session data before switching
+        $sessionData = $_SESSION;
+        $oldSessionName = session_name();
+        
+        // Destroy current session and its cookie
         session_write_close();
-    }
+        
+        // Delete the old session cookie
+        $cookieOptions = session_cookie_options();
+        setcookie($oldSessionName, '', $cookieOptions['lifetime'] - 3600, $cookieOptions['path'], $cookieOptions['domain'], $cookieOptions['secure'], $cookieOptions['httponly']);
 
-    session_name($namespace);
-    session_set_cookie_params(session_cookie_options());
-    session_start();
+        // Switch to new session namespace
+        session_name($namespace);
+        session_set_cookie_params($cookieOptions);
+        session_start();
+
+        // Restore session data to new namespace
+        $_SESSION = $sessionData;
+    } else {
+        // No active session, just start with new namespace
+        session_name($namespace);
+        session_set_cookie_params(session_cookie_options());
+        session_start();
+    }
 }

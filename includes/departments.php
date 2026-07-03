@@ -156,6 +156,28 @@ function department_department_seed_map(): array
     ];
 }
 
+function department_category_belongs_to_department(int $categoryId, int $departmentId): bool
+{
+    if (!department_mapping_table_ready()) {
+        return false;
+    }
+
+    try {
+        $stmt = db()->prepare(
+            'SELECT 1 FROM department_category_mapping 
+             WHERE department_id = :department_id AND issue_category_id = :category_id AND status = 1
+             LIMIT 1'
+        );
+        $stmt->execute([
+            'department_id' => $departmentId,
+            'category_id' => $categoryId,
+        ]);
+        return (bool) $stmt->fetchColumn();
+    } catch (Throwable) {
+        return false;
+    }
+}
+
 function department_resolve_category(int $categoryId): ?array
 {
     return app_cache_remember('departments:route:' . $categoryId, 120, function () use ($categoryId): ?array {
@@ -392,16 +414,19 @@ function department_fetch_recent_issues(int $departmentId, int $limit = 5): arra
         return [];
     }
 
+    $hasPriorityColumn = issue_issue_column_exists('priority');
+    $prioritySelect = $hasPriorityColumn ? 'i.priority' : "'medium' AS priority";
+
     $stmt = db()->prepare(
-        'SELECT i.id, i.ticket_number, i.title, i.status, i.priority, i.created_at, i.updated_at, c.name AS category_name,
+        "SELECT i.id, i.ticket_number, i.title, i.status, $prioritySelect, i.created_at, i.updated_at, c.name AS category_name,
                 reporter.full_name AS reporter_name, assignee.full_name AS assigned_name
          FROM issues i
          INNER JOIN issue_categories c ON c.id = i.category_id
-         INNER JOIN users reporter ON reporter.id = i.user_id' . sql_table_deleted_cond('users', 'reporter') . '
-         LEFT JOIN users assignee ON assignee.id = i.assigned_to' . sql_table_deleted_cond('users', 'assignee') . '
-         WHERE i.department_id = :department_id' . sql_table_deleted_cond('issues', 'i') . '
+         INNER JOIN users reporter ON reporter.id = i.user_id" . sql_table_deleted_cond('users', 'reporter') . "
+         LEFT JOIN users assignee ON assignee.id = i.assigned_to" . sql_table_deleted_cond('users', 'assignee') . "
+         WHERE i.department_id = :department_id" . sql_table_deleted_cond('issues', 'i') . "
          ORDER BY i.updated_at DESC, i.created_at DESC, i.id DESC
-         LIMIT :limit'
+         LIMIT :limit"
     );
     $stmt->bindValue(':department_id', $departmentId, PDO::PARAM_INT);
     $stmt->bindValue(':limit', max(1, min(20, $limit)), PDO::PARAM_INT);
@@ -436,6 +461,17 @@ function department_create_staff(array $data, int $managerId, int $departmentId,
 
     if ($jobTitle === '') {
         $jobTitle = 'Staff Member';
+    }
+
+    // Validate department exists
+    if (!department_tables_ready()) {
+        $errors[] = 'Department system is not available.';
+    } else {
+        $deptCheck = db()->prepare('SELECT department_id FROM departments WHERE department_id = :department_id AND status = 1 LIMIT 1');
+        $deptCheck->execute(['department_id' => $departmentId]);
+        if (!$deptCheck->fetch()) {
+            $errors[] = 'Your department is not valid or active. Please contact an administrator.';
+        }
     }
 
     $exists = db()->prepare('SELECT id FROM users WHERE email = :email LIMIT 1');

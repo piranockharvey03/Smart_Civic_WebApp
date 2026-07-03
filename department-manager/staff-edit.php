@@ -11,6 +11,11 @@ $staffId = (int) ($_GET['id'] ?? 0);
 $errors = [];
 $message = null;
 
+// Validate department before processing
+if ($departmentId === null) {
+    $errors[] = 'You are not assigned to a department. Please contact an administrator to assign you to a department before managing staff.';
+}
+
 $stmt = db()->prepare('SELECT u.id, u.full_name, u.email, u.phone, u.is_active, u.department_id, sp.job_title FROM users u LEFT JOIN staff_profiles sp ON sp.user_id = u.id WHERE u.id = :id LIMIT 1');
 $stmt->execute(['id' => $staffId]);
 $staff = $stmt->fetch();

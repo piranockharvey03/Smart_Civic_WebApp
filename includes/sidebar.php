@@ -35,6 +35,7 @@ $issueMapLink = match ($role) {
 
 $sidebarLogoUrl = app_url('KCCA.png');
 ?>
+<!-- Mobile Offcanvas Sidebar -->
 <div class="offcanvas-lg offcanvas-start app-sidebar" tabindex="-1" id="appSidebar" aria-labelledby="appSidebarLabel">
     <div class="offcanvas-header d-lg-none">
         <h5 class="offcanvas-title" id="appSidebarLabel"><?= e(APP_NAME) ?></h5>
@@ -49,7 +50,7 @@ $sidebarLogoUrl = app_url('KCCA.png');
             <div class="sidebar-logo px-4 py-3 border-bottom">
                 <img class="sidebar-logo-image" src="<?= e($sidebarLogoUrl) ?>" alt="KCCA logo">
             </div>
-            <nav class="nav flex-column px-3 py-4 gap-2">
+            <nav class="nav flex-column px-4 py-4 gap-2">
                 <a class="nav-link <?= ($activePage === 'dashboard') ? 'active' : '' ?>" href="<?= e($dashboardLink) ?>">
                     Dashboard
                 </a>
