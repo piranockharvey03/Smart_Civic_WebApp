@@ -41,7 +41,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
         </div>
 
         <!-- Stats Cards -->
-        <div class="col-12 col-lg-3 col-md-6">
+        <div class="col-md-6 col-xl-3">
             <div class="app-card bg-white compact-card h-100">
                 <div class="card-kicker">Total Issues</div>
                 <div class="d-flex justify-content-between align-items-end mt-2">
@@ -50,7 +50,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
         </div>
-        <div class="col-12 col-lg-3 col-md-6">
+        <div class="col-md-6 col-xl-3">
             <div class="app-card bg-white compact-card h-100">
                 <div class="card-kicker">Open Issues</div>
                 <div class="d-flex justify-content-between align-items-end mt-2">
@@ -59,7 +59,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
         </div>
-        <div class="col-12 col-lg-3 col-md-6">
+        <div class="col-md-6 col-xl-3">
             <div class="app-card bg-white compact-card h-100">
                 <div class="card-kicker">Assigned Issues</div>
                 <div class="d-flex justify-content-between align-items-end mt-2">
@@ -68,7 +68,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
         </div>
-        <div class="col-12 col-lg-3 col-md-6">
+        <div class="col-md-6 col-xl-3">
             <div class="app-card bg-white compact-card h-100">
                 <div class="card-kicker">Resolved Issues</div>
                 <div class="d-flex justify-content-between align-items-end mt-2">
@@ -79,8 +79,8 @@ require_once __DIR__ . '/../includes/sidebar.php';
         </div>
 
         <!-- Recent Issues -->
-        <div class="col-lg-8">
-            <div class="app-card bg-white compact-card h-100">
+        <div class="col-lg-7">
+            <div class="app-card bg-white compact-card mb-4">
                 <div class="section-header mb-3">
                     <div>
                         <h2 class="h5 mb-1">Recent Department Issues</h2>
@@ -109,10 +109,39 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     </div>
                 <?php endif; ?>
             </div>
+
+            <div class="app-card bg-white compact-card">
+                <div class="section-header mb-3">
+                    <div>
+                        <h2 class="h5 mb-1">Submitted Queue</h2>
+                        <p class="text-muted mb-0">Submitted tickets waiting for review or assignment.</p>
+                    </div>
+                    <a href="<?= e(app_url('department-manager/issues.php?status=submitted')) ?>" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <?php 
+                $submittedQueue = $departmentId ? department_fetch_recent_issues($departmentId, 5) : [];
+                $submittedQueue = array_filter($submittedQueue, fn($i) => ($i['status'] ?? '') === 'submitted');
+                ?>
+                <?php if (!$submittedQueue) : ?>
+                    <p class="text-muted mb-0">No submitted tickets are currently waiting in the queue.</p>
+                <?php else : ?>
+                    <div class="d-grid gap-2 compact-stack">
+                        <?php foreach (array_slice($submittedQueue, 0, 5) as $issue) : ?>
+                            <div class="border rounded-3 p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <div>
+                                    <div class="fw-semibold"><a href="<?= e(issue_detail_url((int) $issue['id'], current_user_role())) ?>"><?= e($issue['ticket_number']) ?></a></div>
+                                    <div class="small text-muted"><?= e($issue['category_name']) ?> | <?= e($issue['reporter_name']) ?></div>
+                                </div>
+                                <span class="issue-badge <?= e(issue_status_badge_class((string) $issue['status'])) ?>"><?= e(issue_status_label((string) $issue['status'])) ?></span>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
 
-        <!-- Quick Actions & Stats -->
-        <div class="col-lg-4">
+        <!-- Right Column -->
+        <div class="col-lg-5">
             <div class="app-card bg-white compact-card mb-4">
                 <div class="section-header mb-3">
                     <div>
@@ -135,7 +164,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
 
-            <div class="app-card bg-white compact-card">
+            <div class="app-card bg-white compact-card mb-4">
                 <div class="section-header mb-3">
                     <div>
                         <h2 class="h5 mb-1">Performance Metrics</h2>
@@ -162,44 +191,26 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Staff Workload -->
-        <div class="col-12">
             <div class="app-card bg-white compact-card">
                 <div class="section-header mb-3">
                     <div>
-                        <h2 class="h5 mb-1">Staff Workload Overview</h2>
-                        <p class="text-muted mb-0">Monitor your team's current assignments and performance</p>
+                        <h2 class="h5 mb-1">Staff Workload</h2>
+                        <p class="text-muted mb-0">Quick view of who is carrying the queue.</p>
                     </div>
                     <a href="<?= e(app_url('department-manager/staff.php')) ?>" class="btn btn-sm btn-outline-primary">Manage Staff</a>
                 </div>
                 <?php if (!$staffWorkload) : ?>
                     <p class="text-muted mb-0">No staff workload data available yet.</p>
                 <?php else : ?>
-                    <div class="table-responsive">
-                        <table class="table table-hover table-sm align-middle mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Staff Member</th>
-                                    <th>Email</th>
-                                    <th>Active</th>
-                                    <th>Resolved</th>
-                                    <th>Avg Time</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach (array_slice($staffWorkload, 0, 10) as $member) : ?>
-                                    <tr>
-                                        <td class="fw-semibold"><?= e($member['full_name']) ?></td>
-                                        <td class="small text-muted"><?= e($member['email']) ?></td>
-                                        <td><span class="badge bg-primary"><?= e((string) $member['active_tasks']) ?></span></td>
-                                        <td><span class="badge bg-success"><?= e((string) $member['resolved_tasks']) ?></span></td>
-                                        <td class="small"><?= e($member['avg_resolution_minutes'] !== null ? number_format((float) $member['avg_resolution_minutes'], 1) . ' min' : '0.0 min') ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                    <div class="d-grid gap-2 compact-stack">
+                        <?php foreach (array_slice($staffWorkload, 0, 5) as $memberWorkload) : ?>
+                            <div class="border rounded-3 p-3">
+                                <div class="fw-semibold mb-1"><?= e($memberWorkload['full_name']) ?></div>
+                                <div class="small text-muted mb-1"><?= e($memberWorkload['email']) ?></div>
+                                <div class="small">Active: <?= e((string) ($memberWorkload['active_tasks'] ?? 0)) ?> | Resolved: <?= e((string) ($memberWorkload['resolved_tasks'] ?? 0)) ?> | Avg: <?= e($memberWorkload['avg_resolution_minutes'] !== null ? number_format((float) $memberWorkload['avg_resolution_minutes'], 1) . ' min' : '0.0 min') ?></div>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
             </div>

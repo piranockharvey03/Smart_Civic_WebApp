@@ -57,6 +57,15 @@ function session_namespace_for_request(): string
         return session_namespace_for_role('citizen');
     }
 
+    // Handle shared directories like /issues/ - prioritize role parameter
+    if (str_contains($scriptPath, '/issues/')) {
+        if (in_array($role, ['admin', 'department_manager', 'staff', 'citizen'], true)) {
+            return session_namespace_for_role($role);
+        }
+        // Fallback to shared session if no role parameter
+        return 'smart_civic_shared_session';
+    }
+
     if ($scriptName === 'citizen-login.php') {
         return 'smart_civic_citizen_auth_session';
     }

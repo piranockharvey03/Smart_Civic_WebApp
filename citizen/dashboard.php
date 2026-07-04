@@ -60,7 +60,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
         </div>
         <div class="col-md-6 col-xl-3">
             <div class="app-card bg-white compact-card h-100">
-                <div class="card-kicker">Resolved</div>
+                <div class="card-kicker">Resolved Issues</div>
                 <div class="d-flex justify-content-between align-items-end mt-2">
                     <div class="card-value"><?= e((string) $stats['resolved']) ?></div>
                     <div class="card-meta">Closed issues</div>

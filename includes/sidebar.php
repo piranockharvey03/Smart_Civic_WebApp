@@ -27,8 +27,8 @@ $issueQueueLink = match ($role) {
 };
 
 $issueMapLink = match ($role) {
-    'admin' => app_url('issues/map.php'),
-    'department_manager' => app_url('issues/map.php'),
+    'admin' => app_url('issues/map.php?role=admin'),
+    'department_manager' => app_url('department-manager/map.php'),
     'staff' => app_url('staff/map.php'),
     default => null,
 };
