@@ -75,7 +75,10 @@ $user = current_user();
                 <button class="btn btn-outline-light d-lg-none me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebar" aria-controls="appSidebar">
                     <i class="bi bi-list"></i>
                 </button>
-                <a class="navbar-brand fw-semibold text-success me-auto" href="<?= e(app_url('index.php')) ?>"><?= e(APP_NAME) ?></a>
+                <a class="navbar-brand fw-semibold text-success me-auto d-flex align-items-center gap-2" href="<?= e(app_url('index.php')) ?>">
+                    <img src="<?= e(app_url('KCCA.png')) ?>" alt="KCCA Logo" width="40" height="40">
+                    <?= e(APP_NAME) ?>
+                </a>
                 <div class="d-flex align-items-center gap-3 text-muted small">
                     <button type="button" class="btn btn-sm btn-outline-secondary theme-toggle" data-theme-toggle aria-pressed="false" aria-label="Toggle dark mode">
                         <i class="bi bi-moon-stars" data-theme-icon></i>
@@ -95,7 +98,10 @@ $user = current_user();
     <?php else : ?>
         <nav class="navbar navbar-expand-lg navbar-light app-topbar">
             <div class="container-fluid">
-                <a class="navbar-brand fw-semibold text-success me-auto" href="<?= e(app_url('index.php')) ?>"><?= e(APP_NAME) ?></a>
+                <a class="navbar-brand fw-semibold text-success me-auto d-flex align-items-center gap-2" href="<?= e(app_url('index.php')) ?>">
+                    <img src="<?= e(app_url('KCCA.png')) ?>" alt="KCCA Logo" width="40" height="40">
+                    <?= e(APP_NAME) ?>
+                </a>
                 <div class="d-flex align-items-center gap-2 flex-wrap">
                     <a class="btn btn-sm btn-outline-success" href="<?= e(app_url('auth/register.php')) ?>">Report an Issue</a>
                     <a class="btn btn-sm btn-outline-secondary" href="<?= e(app_url('track-issue.php')) ?>">Track Ticket</a>
@@ -104,4 +110,4 @@ $user = current_user();
             </div>
         </nav>
     <?php endif; ?>
-    <div class="app-page d-flex">
+    <div class="app-page<?= is_logged_in() ? ' d-flex' : '' ?>">

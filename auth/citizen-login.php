@@ -90,7 +90,6 @@ render_auth_page([
     'rememberMeChecked' => $rememberMe,
     'links' => [
         ['href' => app_url('auth/register.php'), 'label' => 'Create citizen account'],
-        ['href' => login_url_for_roles(['admin', 'staff']), 'label' => 'Staff/admin login'],
     ],
     'footerNote' => 'Citizens can self-register, reset a forgotten password, or track a ticket without logging in.',
     'footerLinks' => [
