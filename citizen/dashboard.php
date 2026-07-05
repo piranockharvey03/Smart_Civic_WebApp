@@ -22,7 +22,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
         <div class="col-12">
             <div class="app-card issue-panel compact-card p-4 p-lg-4">
                 <p class="text-uppercase small text-muted mb-2">Citizen Dashboard</p>
-                <h1 class="h2 mb-2">Welcome, <?= e($user['full_name'] ?? '') ?></h1>
+                <h1  class="h5 mb-2">Logged in as:  <?= e($user['full_name'] ?? '') ?></h1>
                 <p class="mb-3">Submit civic issues, track ticket progress, and review KCCA responses in one place.</p>
                 <div class="d-flex flex-wrap gap-2">
                     <a href="<?= e(app_url('citizen/report-issue.php')) ?>" class="btn btn-primary">Submit New Issue</a>

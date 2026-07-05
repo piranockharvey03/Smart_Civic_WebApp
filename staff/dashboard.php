@@ -29,7 +29,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
         <div class="col-12">
             <div class="app-card issue-panel compact-card p-4 p-lg-4">
                 <p class="text-uppercase small text-muted mb-2">Staff Dashboard</p>
-                <h1 class="h2 mb-2">Welcome, <?= e($user['full_name'] ?? '') ?></h1>
+                <h1  class="h5 mb-2">Logged in as: <?= e($user['full_name'] ?? '') ?></h1>
                 <p class="mb-3">Monitor incoming civic issues, update progress, and keep citizens informed.</p>
                 <div class="d-flex flex-wrap gap-2">
                     <a href="<?= e(app_url('staff/issues.php')) ?>" class="btn btn-primary">Open Issue Console</a>
