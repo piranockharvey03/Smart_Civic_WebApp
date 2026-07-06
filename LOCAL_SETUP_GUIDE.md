@@ -68,21 +68,10 @@ This guide will help you set up and run the Smart Civic Platform on your local l
    - Default username: `root`
    - Default password: (leave empty)
 
-2. **Create a new database**
-   - Click "New" in the left sidebar
-   - Database name: `smart_civic_db` (or your preferred name)
-   - Collation: `utf8mb4_unicode_ci`
-   - Click "Create"
 
-3. **Import database schema**
-   - Select the created database
-   - Click "Import" tab
-   - Browse to: `C:\xampp\htdocs\app\database\migrations\`
-   - Import migration files in order (by date):
-     - `2026_05_26_phase_four_admin_reporting.sql`
-     - `2026_05_29_add_issue_geolocation.sql`
-     - `2026_07_01_add_app_cache_table.sql`
-     - Any other migration files present
+2. **Import database schema**
+   - Open phpmyadmnin in your xammpp panel
+   - Import the database use the "combined.sql file
 
 ### Step 4: Configure Application Settings
 
