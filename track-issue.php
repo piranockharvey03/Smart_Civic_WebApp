@@ -102,6 +102,10 @@ require_once __DIR__ . '/includes/header.php';
                         <div class="col-md-6">
                             <div class="text-muted small text-uppercase">Submitted</div>
                             <div class="fw-semibold"><?= e(date('d M Y, H:i', strtotime((string) $issue['created_at']))) ?></div>
+                            <?php if (!empty($issue['closed_at'])): ?>
+                            <div class="text-muted small text-uppercase mt-2">Closed</div>
+                            <div class="fw-semibold"><?= e(date('d M Y, H:i', strtotime((string) $issue['closed_at']))) ?></div>
+                            <?php endif; ?>
                         </div>
                         <div class="col-md-6">
                             <div class="text-muted small text-uppercase">Last updated</div>

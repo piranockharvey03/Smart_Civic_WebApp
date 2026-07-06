@@ -315,6 +315,9 @@ if (is_logged_in()) {
                         </div>
                         <div class="small text-muted">Category: <?= e($issue['category_name']) ?></div>
                         <div class="small text-muted">Submitted: <?= e(date('d M Y, H:i', strtotime((string) $issue['created_at']))) ?></div>
+                        <?php if (!empty($issue['closed_at'])): ?>
+                        <div class="small text-muted">Closed: <?= e(date('d M Y, H:i', strtotime((string) $issue['closed_at']))) ?></div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
