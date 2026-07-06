@@ -30,6 +30,7 @@ $issueMapLink = match ($role) {
     'admin' => app_url('issues/map.php?role=admin'),
     'department_manager' => app_url('department-manager/map.php'),
     'staff' => app_url('staff/map.php'),
+    'citizen' => app_url('citizen/map.php'),
     default => null,
 };
 
@@ -57,6 +58,9 @@ $sidebarLogoUrl = app_url('KCCA.png');
                 <?php if ($role === 'citizen') : ?>
                     <a class="nav-link <?= ($activePage === 'citizen-issues') ? 'active' : '' ?>" href="<?= e($issueListLink) ?>">My Reports</a>
                     <a class="nav-link <?= ($activePage === 'citizen-report') ? 'active' : '' ?>" href="<?= e($issueQueueLink) ?>">Submit Report</a>
+                    <?php if ($issueMapLink) : ?>
+                        <a class="nav-link <?= ($activePage === 'citizen-map') ? 'active' : '' ?>" href="<?= e($issueMapLink) ?>">My Issue Map</a>
+                    <?php endif; ?>
                     <a class="nav-link <?= ($activePage === 'citizen-notifications') ? 'active' : '' ?>" href="<?= e(app_url('citizen/notifications.php')) ?>">Notifications</a>
                     <a class="nav-link <?= ($activePage === 'citizen-profile') ? 'active' : '' ?>" href="<?= e(app_url('citizen/profile.php')) ?>">Profile</a>
                 <?php elseif ($role === 'staff') : ?>

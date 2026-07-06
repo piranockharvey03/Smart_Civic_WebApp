@@ -449,7 +449,7 @@ if (is_logged_in()) {
             <div class="app-card bg-white p-4 mb-4">
                 <h2 class="h5 mb-3">Submitted Photo</h2>
                 <?php if (!empty($issue['image'])) : ?>
-                    <?php $issueImageUrl = app_url('issues/image.php?id=' . (int) $issue['id']); ?>
+                    <?php $issueImageUrl = app_url('issues/image.php?id=' . (int) $issue['id'] . '&role=' . urlencode($role)); ?>
                     <?php if ($issueImageUrl) : ?>
                         <a href="<?= e($issueImageUrl) ?>" target="_blank" rel="noopener noreferrer" class="d-block">
                             <img class="img-fluid rounded-3 border w-100" src="<?= e($issueImageUrl) ?>" alt="Citizen submitted issue photo" style="max-height: 320px; object-fit: cover;">
@@ -539,15 +539,17 @@ if (is_logged_in()) {
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <?php if ($role === 'admin') : ?>
+                        <?php if ($role === 'admin' || $isDepartmentManager) : ?>
                             <div class="mb-3">
                                 <label for="assigned_to" class="form-label">Assign To</label>
                                 <select class="form-select" name="assigned_to" id="assigned_to">
                                     <option value="">Unassigned</option>
                                     <?php foreach ($staffMembers as $staffMember) : ?>
-                                        <option value="<?= e((string) $staffMember['id']) ?>" <?= ((int) ($issue['assigned_to'] ?? 0) === (int) $staffMember['id']) ? 'selected' : '' ?>>
-                                            <?= e($staffMember['full_name']) ?> (<?= e($staffMember['role_name']) ?>)
-                                        </option>
+                                        <?php if ($role === 'admin' || ($isDepartmentManager && (int) $staffMember['department_id'] === (int) $viewerDepartmentId)) : ?>
+                                            <option value="<?= e((string) $staffMember['id']) ?>" <?= ((int) ($issue['assigned_to'] ?? 0) === (int) $staffMember['id']) ? 'selected' : '' ?>>
+                                                <?= e($staffMember['full_name']) ?> (<?= e($staffMember['role_name']) ?>)
+                                            </option>
+                                        <?php endif; ?>
                                     <?php endforeach; ?>
                                 </select>
                             </div>

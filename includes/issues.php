@@ -1053,7 +1053,7 @@ function issue_fetch_comments(int $issueId): array
 function issue_fetch_staff_members(): array
 {
     $stmt = db()->query(
-        "SELECT u.id, u.full_name, u.email, u.division, r.name AS role_name
+        "SELECT u.id, u.full_name, u.email, u.division, u.department_id, r.name AS role_name
          FROM users u
          INNER JOIN roles r ON r.id = u.role_id
          WHERE u.is_active = 1" . sql_table_deleted_cond('users', 'u') . " AND r.name IN ('staff', 'admin')
