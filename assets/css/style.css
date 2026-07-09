@@ -504,9 +504,9 @@ html[data-bs-theme='dark'] body.app-shell .theme-toggle:focus {
     color: var(--app-ink);
 }
 
-.form-control {
+.form-control, .form-select {
     height: 48px;
-    border-radius: 4px;
+    border-radius: 12px;
     font-size: 1rem;
     padding: 0.5rem 0.75rem;
 }
