@@ -71,7 +71,7 @@ This guide will help you set up and run the Smart Civic Platform on your local l
 
 2. **Import database schema**
    - Open phpmyadmnin in your xammpp panel
-   - Import the database use the "combined.sql file
+   - Import the system database use the "combined.sql file" in the database folder
 
 ### Step 4: Configure Application Settings
 
@@ -132,76 +132,21 @@ This guide will help you set up and run the Smart Civic Platform on your local l
 ### Create Admin Account
 
 1. **Access admin registration**
-   - Go to: http://localhost/app/auth/register.php
-   - Or use phpMyAdmin to directly insert an admin user
+   - Go to: http://localhost/app/auth/login.php
+   - This directs you to the login page of the admin
+   - The Default credentials are:
+   - Email:admin@smartcivic.local
+   - Password: Admin@123
 
-2. **Create admin via phpMyAdmin** (recommended)
-   - Go to: http://localhost/phpmyadmin
-   - Select your database
-   - Go to `users` table
-   - Insert a new record:
-     ```sql
-     INSERT INTO users (full_name, email, password, role_id, is_active, created_at)
-     VALUES (
-         'Admin User',
-         'admin@kcca.local',
-         '$2y$10$hashedpasswordhere',  -- Use a proper bcrypt hash
-         1,  -- Admin role_id
-         1,  -- Active
-         NOW()
-     );
-     ```
-   - Note: Generate a proper password hash using PHP's `password_hash()` function
+   - The same link http://localhost/app/auth/login.php
+   - Can be used to log in as the staff that was inserted as en example
+   - You can control the staff and users when you login as an admin.
+   - The default credentials used are:
+   - Email: staff@smartcivic.local
+   - Password: Staff@123
 
-3. **Alternative: Use the registration form**
-   - Go to: http://localhost/app/auth/register.php
-   - Fill in the registration details
-   - The system will create a citizen account by default
-   - Use phpMyAdmin to update the role_id to 1 (admin)
-
-### Create Department Manager Account
-
-1. **Create department first**
-   - Go to `departments` table in phpMyAdmin
-   - Insert a department:
-     ```sql
-     INSERT INTO departments (department_name, created_at)
-     VALUES ('Public Works', NOW());
-     ```
-
-2. **Create department manager**
-   - Go to `users` table
-   - Insert a department manager:
-     ```sql
-     INSERT INTO users (full_name, email, password, role_id, department_id, is_active, created_at)
-     VALUES (
-         'Dept Manager',
-         'manager@kcca.local',
-         '$2y$10$hashedpasswordhere',
-         3,  -- Department manager role_id
-         1,  -- Department ID
-         1,  -- Active
-         NOW()
-     );
-     ```
-
-### Create Staff Account
-
-1. **Create staff member**
-   - Go to `users` table
-   - Insert a staff member:
-     ```sql
-     INSERT INTO users (full_name, email, password, role_id, department_id, is_active, created_at)
-     VALUES (
-         'Staff Member',
-         'staff@kcca.local',
-         '$2y$10$hashedpasswordhere',
-         2,  -- Staff role_id
-         1,  -- Department ID
-         1,  -- Active
-         NOW()
-     );
-     ```
+   - NOTE:
+   - THE DEPARTMENT MANAGER is created by the admin and he/she has rights to add staff in a given deparment
 
 ## Testing the Application
 
