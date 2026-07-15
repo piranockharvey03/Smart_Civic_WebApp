@@ -63,7 +63,7 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
         <div class="col-lg-7 p-5">
             <h2 class="h4 mb-2">Reset your password</h2>
-            <p class="text-muted mb-4">Enter your email address and we will prepare a secure reset link.</p>
+            <p class="text-muted mb-4">On entering your email address, we will prepare a secure reset link.</p>
 
             <?php foreach ($errors as $error) : ?>
                 <div class="alert alert-danger"><?= e($error) ?></div>
@@ -73,7 +73,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <?= csrf_field() ?>
                 <div class="mb-3">
                     <label for="email" class="form-label">Email address</label>
-                    <input type="email" class="form-control form-control-lg" id="email" name="email" value="<?= old('email', $email) ?>" required>
+                    <input type="email" class="form-control form-control-lg" id="email" placeholder="Enter your email address" name="email" value="<?= old('email', $email) ?>" required>
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                     <a href="<?= e(app_url('auth/citizen-login.php')) ?>">Back to citizen login</a>

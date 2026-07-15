@@ -61,11 +61,11 @@ function render_auth_page(array $config): void
                     <?= csrf_field() ?>
                     <div class="mb-3">
                         <label for="email" class="form-label">Email address</label>
-                        <input type="email" class="form-control form-control-lg" id="email" name="email" value="<?= old('email', $emailValue) ?>" required>
+                        <input type="email" class="form-control form-control-lg" id="email" placeholder="Enter your email address" name="email" value="<?= old('email', $emailValue) ?>" required>
                     </div>
                     <div class="mb-3">
                         <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control form-control-lg" id="password" name="password" required>
+                        <input type="password" class="form-control form-control-lg" id="password" placeholder="Enter your password" name="password" required>
                     </div>
                     <?php if ($rememberMeEnabled) : ?>
                         <div class="form-check auth-remember mb-3">
