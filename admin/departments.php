@@ -131,7 +131,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="col-lg-4">
+        <div class="col-lg-15">
             <div class="app-card bg-white compact-card">
                 <h1 class="h4 mb-3">Departments</h1>
                 <?php foreach ($errors as $error) : ?><div class="alert alert-danger"><?= e($error) ?></div><?php endforeach; ?>
@@ -145,7 +145,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 </form>
             </div>
         </div>
-        <div class="col-lg-8">
+        <div class="col-lg-15">
             <div class="app-card bg-white compact-card">
                 <div class="table-responsive">
                     <table class="table align-middle">

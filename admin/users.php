@@ -271,15 +271,15 @@ unset($_SESSION['temp_credential_notice']);
                     <form method="post" class="row g-2 align-items-end">
                         <?= csrf_field() ?>
                         <input type="hidden" name="action" value="create_staff">
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label">Full name</label>
                             <input type="text" name="full_name" class="form-control" placeholder="Staff member name" required>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label">Email</label>
                             <input type="email" name="email" class="form-control" placeholder="staffexample@gmail.org" required>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label">Division</label>
                             <input type="text" name="division" class="form-control" placeholder="Roads">
                         </div>
@@ -293,17 +293,17 @@ unset($_SESSION['temp_credential_notice']);
                                 <label class="form-check-label small" for="force_password_reset">Force first-login reset</label>
                             </div>
                         </div>
-                        <div class="col-md-1">
+                        <div class="col-md-2">
                             <button type="submit" class="btn btn-success w-100">Create</button>
                         </div>
                     </form>
                 </div>
                 <form method="get" class="row g-3 align-items-end">
-                    <div class="col-md-4">
+                    <div class="col-md-2">
                         <label class="form-label">Search</label>
                         <input type="text" name="search" value="<?= e($filters['search']) ?>" class="form-control" placeholder="Name, email, division">
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="form-label">Role</label>
                         <select name="role" class="form-select">
                             <option value="">All roles</option>
@@ -312,7 +312,7 @@ unset($_SESSION['temp_credential_notice']);
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="form-label">Account Status</label>
                         <select name="is_active" class="form-select">
                             <option value="">All accounts</option>
@@ -320,7 +320,7 @@ unset($_SESSION['temp_credential_notice']);
                             <option value="0" <?= $filters['is_active'] === '0' ? 'selected' : '' ?>>Inactive</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="form-label">Trash</label>
                         <select name="deleted" class="form-select">
                             <option value="">Active only</option>
@@ -361,7 +361,7 @@ unset($_SESSION['temp_credential_notice']);
                                     <td><span class="issue-badge <?= ((int) $user['is_active'] === 1) ? 'success' : 'dark' ?>"><?= ((int) $user['is_active'] === 1) ? 'Active' : 'Inactive' ?></span></td>
                                     <td><?= e((string) ($user['last_login_at'] ?? 'Never')) ?></td>
                                     <td>
-                                        <form method="post" class="d-flex flex-wrap gap-2 align-items-center">
+                                        <form method="post" class="d-flex flex-wrap gap-1 align-items-center">
                                             <?= csrf_field() ?>
                                             <input type="hidden" name="user_id" value="<?= e((string) $user['id']) ?>">
                                             <input type="hidden" name="return_role" value="<?= e($filters['role']) ?>">
@@ -380,7 +380,7 @@ unset($_SESSION['temp_credential_notice']);
                                             <input type="hidden" name="action" value="update_user">
                                             <button class="btn btn-sm btn-primary" type="submit">Save</button>
                                         </form>
-                                        <form method="post" class="d-flex gap-2 mt-2">
+                                        <form method="post" class="d-flex gap-1 mt-1">
                                             <?= csrf_field() ?>
                                             <input type="hidden" name="user_id" value="<?= e((string) $user['id']) ?>">
                                             <input type="hidden" name="return_role" value="<?= e($filters['role']) ?>">
@@ -391,7 +391,7 @@ unset($_SESSION['temp_credential_notice']);
                                             <input type="text" name="new_password" class="form-control form-control-sm" placeholder="Temporary password">
                                             <button class="btn btn-sm btn-outline-warning" type="submit">Reset Password</button>
                                         </form>
-                                        <form method="post" class="d-flex gap-2 mt-2" onsubmit="return confirm('Move this user to trash?');">
+                                        <form method="post" class="d-flex gap-1 mt-1" onsubmit="return confirm('Move this user to trash?');">
                                             <?= csrf_field() ?>
                                             <input type="hidden" name="user_id" value="<?= e((string) $user['id']) ?>">
                                             <input type="hidden" name="return_role" value="<?= e($filters['role']) ?>">

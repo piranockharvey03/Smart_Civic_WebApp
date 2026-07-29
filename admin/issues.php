@@ -88,10 +88,10 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="col-lg-8">
+        <div class="col-lg-15">
             <div class="app-card bg-white compact-card mb-4">
                 <form method="get" action="" class="row g-2 align-items-end">
-                    <div class="col-lg-3 col-md-6">
+                    <div class="col-lg-12 col-md-6">
                         <label class="form-label" for="ticket_number">Ticket Number</label>
                         <input type="text" class="form-control" id="ticket_number" name="ticket_number" value="<?= e($filters['ticket_number']) ?>" placeholder="KCCA-2026-0001">
                     </div>
@@ -157,7 +157,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 </form>
             </div>
 
-            <div class="app-card bg-white p-4">
+            <div class="app-card bg-white p-1">
                 <div class="section-header">
                     <div>
                         <h2 class="h5 mb-1">All Issues</h2>
@@ -227,7 +227,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="col-lg-4">
+        <div class="col-lg-15">
             <div class="app-card bg-white compact-card mb-4">
                 <div class="section-header mb-3">
                     <div>

@@ -126,7 +126,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="col-lg-7">
+        <div class="col-lg-15">
             <div class="app-card bg-white compact-card">
                 <div class="section-header">
                     <div>
@@ -161,7 +161,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="col-lg-5">
+        <div class="col-lg-15">
             <div class="app-card bg-white compact-card mb-4">
                 <h2 class="h5 mb-3">Top Categories</h2>
                 <div class="d-grid gap-2 compact-stack">
