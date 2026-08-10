@@ -360,47 +360,57 @@ unset($_SESSION['temp_credential_notice']);
                                     <td><?= e((string) ($user['division'] ?? '')) ?></td>
                                     <td><span class="issue-badge <?= ((int) $user['is_active'] === 1) ? 'success' : 'dark' ?>"><?= ((int) $user['is_active'] === 1) ? 'Active' : 'Inactive' ?></span></td>
                                     <td><?= e((string) ($user['last_login_at'] ?? 'Never')) ?></td>
-                                    <td>
-                                        <form method="post" class="d-flex flex-wrap gap-1 align-items-center">
-                                            <?= csrf_field() ?>
-                                            <input type="hidden" name="user_id" value="<?= e((string) $user['id']) ?>">
-                                            <input type="hidden" name="return_role" value="<?= e($filters['role']) ?>">
-                                            <input type="hidden" name="return_is_active" value="<?= e($filters['is_active']) ?>">
-                                            <input type="hidden" name="return_deleted" value="<?= e($filters['deleted']) ?>">
-                                            <input type="hidden" name="return_search" value="<?= e($filters['search']) ?>">
-                                            <select name="role_id" class="form-select form-select-sm w-auto">
-                                                <?php foreach ($roles as $role) : ?>
-                                                    <option value="<?= e((string) $role['id']) ?>" <?= (int) $user['role_id'] === (int) $role['id'] ? 'selected' : '' ?>><?= e(ucfirst($role['name'])) ?></option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                            <div class="form-check form-switch mb-0">
-                                                <input class="form-check-input" type="checkbox" name="is_active" id="active-<?= e((string) $user['id']) ?>" <?= ((int) $user['is_active'] === 1) ? 'checked' : '' ?>>
-                                                <label class="form-check-label small" for="active-<?= e((string) $user['id']) ?>">Active</label>
+                                    <td class="align-middle">
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                Actions
+                                            </button>
+                                            <div class="dropdown-menu p-2" style="min-width: 280px;">
+                                                <form method="post" class="d-flex flex-column gap-2">
+                                                    <?= csrf_field() ?>
+                                                    <input type="hidden" name="user_id" value="<?= e((string) $user['id']) ?>">
+                                                    <input type="hidden" name="return_role" value="<?= e($filters['role']) ?>">
+                                                    <input type="hidden" name="return_is_active" value="<?= e($filters['is_active']) ?>">
+                                                    <input type="hidden" name="return_deleted" value="<?= e($filters['deleted']) ?>">
+                                                    <input type="hidden" name="return_search" value="<?= e($filters['search']) ?>">
+                                                    <label class="small text-muted mb-0">Role</label>
+                                                    <select name="role_id" class="form-select form-select-sm">
+                                                        <?php foreach ($roles as $role) : ?>
+                                                            <option value="<?= e((string) $role['id']) ?>" <?= (int) $user['role_id'] === (int) $role['id'] ? 'selected' : '' ?>><?= e(ucfirst($role['name'])) ?></option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                    <div class="form-check form-switch mb-0">
+                                                        <input class="form-check-input" type="checkbox" name="is_active" id="active-<?= e((string) $user['id']) ?>" <?= ((int) $user['is_active'] === 1) ? 'checked' : '' ?>>
+                                                        <label class="form-check-label small" for="active-<?= e((string) $user['id']) ?>">Active</label>
+                                                    </div>
+                                                    <input type="hidden" name="action" value="update_user">
+                                                    <button class="btn btn-sm btn-primary" type="submit">Save</button>
+                                                </form>
+                                                <hr class="dropdown-divider my-2">
+                                                <form method="post" class="d-flex flex-column gap-2">
+                                                    <?= csrf_field() ?>
+                                                    <input type="hidden" name="user_id" value="<?= e((string) $user['id']) ?>">
+                                                    <input type="hidden" name="return_role" value="<?= e($filters['role']) ?>">
+                                                    <input type="hidden" name="return_is_active" value="<?= e($filters['is_active']) ?>">
+                                                    <input type="hidden" name="return_deleted" value="<?= e($filters['deleted']) ?>">
+                                                    <input type="hidden" name="return_search" value="<?= e($filters['search']) ?>">
+                                                    <input type="hidden" name="action" value="reset_password">
+                                                    <input type="text" name="new_password" class="form-control form-control-sm" placeholder="Temporary password">
+                                                    <button class="btn btn-sm btn-outline-warning" type="submit">Reset Password</button>
+                                                </form>
+                                                <hr class="dropdown-divider my-2">
+                                                <form method="post" onsubmit="return confirm('Move this user to trash?');">
+                                                    <?= csrf_field() ?>
+                                                    <input type="hidden" name="user_id" value="<?= e((string) $user['id']) ?>">
+                                                    <input type="hidden" name="return_role" value="<?= e($filters['role']) ?>">
+                                                    <input type="hidden" name="return_is_active" value="<?= e($filters['is_active']) ?>">
+                                                    <input type="hidden" name="return_deleted" value="<?= e($filters['deleted']) ?>">
+                                                    <input type="hidden" name="return_search" value="<?= e($filters['search']) ?>">
+                                                    <input type="hidden" name="action" value="trash_user">
+                                                    <button class="btn btn-sm btn-outline-danger w-100" type="submit">Trash</button>
+                                                </form>
                                             </div>
-                                            <input type="hidden" name="action" value="update_user">
-                                            <button class="btn btn-sm btn-primary" type="submit">Save</button>
-                                        </form>
-                                        <form method="post" class="d-flex gap-1 mt-1">
-                                            <?= csrf_field() ?>
-                                            <input type="hidden" name="user_id" value="<?= e((string) $user['id']) ?>">
-                                            <input type="hidden" name="return_role" value="<?= e($filters['role']) ?>">
-                                            <input type="hidden" name="return_is_active" value="<?= e($filters['is_active']) ?>">
-                                            <input type="hidden" name="return_deleted" value="<?= e($filters['deleted']) ?>">
-                                            <input type="hidden" name="return_search" value="<?= e($filters['search']) ?>">
-                                            <input type="hidden" name="action" value="reset_password">
-                                            <input type="text" name="new_password" class="form-control form-control-sm" placeholder="Temporary password">
-                                            <button class="btn btn-sm btn-outline-warning" type="submit">Reset Password</button>
-                                        </form>
-                                        <form method="post" class="d-flex gap-1 mt-1" onsubmit="return confirm('Move this user to trash?');">
-                                            <?= csrf_field() ?>
-                                            <input type="hidden" name="user_id" value="<?= e((string) $user['id']) ?>">
-                                            <input type="hidden" name="return_role" value="<?= e($filters['role']) ?>">
-                                            <input type="hidden" name="return_is_active" value="<?= e($filters['is_active']) ?>">
-                                            <input type="hidden" name="return_deleted" value="<?= e($filters['deleted']) ?>">
-                                            <input type="hidden" name="return_search" value="<?= e($filters['search']) ?>">
-                                            <input type="hidden" name="action" value="trash_user">
-                                            <button class="btn btn-sm btn-outline-danger" type="submit">Trash</button>
-                                        </form>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
