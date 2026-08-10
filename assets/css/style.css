@@ -43,13 +43,51 @@ body.app-shell {
 .app-page {
     min-height: calc(100vh - 56px);
 }
+
+.app-page.d-flex {
+    display: flex;
+    align-items: flex-start;
+}
+
 .app-sidebar {
-    width: 280px;
+    width: 300px;
+    max-width: 300px;
     border-right: 2px solid var(--app-green);
     background: var(--app-white);
 }
 
+.app-page.d-flex > .app-sidebar {
+    flex: 0 0 300px;
+}
+
+.app-page.d-flex > .app-content {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
 @media (min-width: 992px) {
+    .offcanvas-lg.app-sidebar {
+        position: sticky !important;
+        top: 0;
+        align-self: flex-start;
+        width: 300px !important;
+        max-width: 300px;
+        height: 100vh;
+        max-height: 100vh;
+        overflow-y: auto;
+    }
+
+    .offcanvas-lg.app-sidebar .offcanvas-body {
+        height: 100%;
+    }
+
+    .offcanvas-lg.app-sidebar .sidebar {
+        height: 100%;
+        overflow-y: auto;
+        background: var(--app-white);
+        width: 100%;
+    }
+
     .offcanvas-lg {
         position: static !important;
         visibility: visible !important;
