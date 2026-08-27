@@ -304,6 +304,8 @@ Staff members are KCCA employees responsible for addressing reported civic issue
 3. Click "Login"
 4. You will be redirected to your staff dashboard
 
+After login, the navigation bar shows your name, staff role, and assigned department. If no department has been assigned, it shows "Department: Unassigned".
+
 ### Dashboard Features
 
 The staff dashboard provides:
@@ -497,6 +499,8 @@ The department manager dashboard provides:
 3. Update the information as needed
 4. Click "Save Changes"
 
+Managers can edit staff members in their own department only. They can update the staff member's name, email, phone number, job title, password, and active status. Managers cannot change the staff member's role or department.
+
 #### Activating/Deactivating Staff
 
 1. Navigate to "Manage Staff"
@@ -634,6 +638,22 @@ The admin dashboard provides:
 3. Update information as needed
 4. Change role if necessary
 5. Click "Save Changes"
+
+#### Editing Staff Details
+
+The Users page lists citizens and internal users together. Open the **Actions** menu for a staff member or department manager and select **Edit Staff Details**. This option is not shown for citizens.
+
+Administrators can update the staff member's:
+
+- Full name
+- Email address
+- Phone number
+- Job title
+- Department assignment
+- Active status
+- Password, when a new password is entered
+
+The update validates the email address and department, records the change in the audit trail, and returns to the previous Users page filters. Staff and department manager accounts also see their assigned department in the navigation bar after login.
 
 #### Activating/Deactivating Users
 
