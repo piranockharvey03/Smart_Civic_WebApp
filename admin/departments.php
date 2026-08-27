@@ -9,7 +9,19 @@ $user = current_user();
 $errors = [];
 $message = null;
 $departmentUsers = db()->query("SELECT u.id, u.full_name, r.name AS role_name FROM users u INNER JOIN roles r ON r.id = u.role_id WHERE u.is_active = 1" . sql_table_deleted_cond('users', 'u') . " AND r.name IN ('staff', 'department_manager', 'admin') ORDER BY u.full_name ASC")->fetchAll();
-$unassignedStaff = db()->query("SELECT u.id, u.full_name, u.email, r.name AS role_name, sp.department AS staff_department, sp.job_title FROM users u INNER JOIN roles r ON r.id = u.role_id LEFT JOIN staff_profiles sp ON sp.user_id = u.id WHERE u.department_id IS NULL" . sql_table_deleted_cond('users', 'u') . " AND r.name IN ('staff', 'department_manager') ORDER BY u.full_name ASC")->fetchAll();
+$staffDepartmentReview = db()->query(
+    "SELECT u.id, u.full_name, u.email, r.name AS role_name,
+            d.department_name AS current_department_name,
+            COALESCE(d.department_name, sp.department, 'Unmapped') AS current_department,
+            sp.job_title
+     FROM users u
+     INNER JOIN roles r ON r.id = u.role_id
+     LEFT JOIN departments d ON d.department_id = u.department_id
+     LEFT JOIN staff_profiles sp ON sp.user_id = u.id
+     WHERE u.is_active = 1" . sql_table_deleted_cond('users', 'u') . "
+       AND r.name IN ('staff', 'department_manager')
+     ORDER BY u.full_name ASC"
+)->fetchAll();
 $departmentCleanupSummary = [
     'staff_mapped' => 0,
     'staff_unmapped' => 0,
@@ -188,21 +200,21 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
 
             <div class="app-card bg-white compact-card mt-4">
-                <h2 class="h5 mb-3">Unassigned Staff Review</h2>
-                <?php if (!$unassignedStaff) : ?>
-                    <p class="text-muted mb-0">No unresolved staff accounts were found.</p>
+                <h2 class="h5 mb-3">Staff Department Review</h2>
+                <?php if (!$staffDepartmentReview) : ?>
+                    <p class="text-muted mb-0">No staff accounts were found.</p>
                 <?php else : ?>
                     <div class="table-responsive">
                         <table class="table align-middle">
-                            <thead><tr><th>Name</th><th>Current Dept</th><th>Role</th><th>Assign Department</th></tr></thead>
+                            <thead><tr><th>Name</th><th>Current Dept</th><th>Role</th><th>Move To Department</th></tr></thead>
                             <tbody>
-                            <?php foreach ($unassignedStaff as $staff) : ?>
+                            <?php foreach ($staffDepartmentReview as $staff) : ?>
                                 <tr>
                                     <td>
                                         <div class="fw-semibold"><?= e($staff['full_name']) ?></div>
                                         <div class="small text-muted"><?= e($staff['email']) ?></div>
                                     </td>
-                                    <td><?= e($staff['staff_department'] ?? 'Unmapped') ?></td>
+                                    <td><?= e((string) ($staff['current_department'] ?? 'Unmapped')) ?></td>
                                     <td><?= e($staff['role_name']) ?></td>
                                     <td>
                                         <form method="post" class="d-flex gap-2">
@@ -212,10 +224,10 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                             <select class="form-select form-select-sm" name="department_id" required>
                                                 <option value="">Select department</option>
                                                 <?php foreach ($departments as $department) : ?>
-                                                    <option value="<?= e((string) $department['department_id']) ?>"><?= e((string) $department['department_name']) ?></option>
+                                                    <option value="<?= e((string) $department['department_id']) ?>" <?= ((int) ($staff['current_department_name'] ?? 0) === (int) $department['department_id']) ? 'selected' : '' ?>><?= e((string) $department['department_name']) ?></option>
                                                 <?php endforeach; ?>
                                             </select>
-                                            <button type="submit" class="btn btn-sm btn-outline-primary">Assign</button>
+                                            <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
                                         </form>
                                     </td>
                                 </tr>

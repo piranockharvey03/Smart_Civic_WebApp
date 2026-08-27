@@ -386,6 +386,15 @@ unset($_SESSION['temp_credential_notice']);
                                                                     <option value="<?= e((string) $role['id']) ?>" <?= (int) $user['role_id'] === (int) $role['id'] ? 'selected' : '' ?>><?= e(ucfirst($role['name'])) ?></option>
                                                                 <?php endforeach; ?>
                                                             </select>
+                                                            <?php if (in_array((string) $user['role_name'], ['staff', 'department_manager'], true)) : ?>
+                                                                <a class="btn btn-sm btn-outline-primary" href="<?= e(app_url('admin/staff-edit.php?' . http_build_query([
+                                                                    'id' => (int) $user['id'],
+                                                                    'return_role' => $filters['role'],
+                                                                    'return_is_active' => $filters['is_active'],
+                                                                    'return_deleted' => $filters['deleted'],
+                                                                    'return_search' => $filters['search'],
+                                                                ]))) ?>">Edit Staff Details</a>
+                                                            <?php endif; ?>
                                                             <div class="form-check form-switch mb-0">
                                                                 <input class="form-check-input" type="checkbox" name="is_active" id="active-<?= e((string) $user['id']) ?>" <?= ((int) $user['is_active'] === 1) ? 'checked' : '' ?>>
                                                                 <label class="form-check-label small" for="active-<?= e((string) $user['id']) ?>">Active</label>

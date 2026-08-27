@@ -70,6 +70,11 @@ $user = current_user();
     </div>
     <?php if (is_logged_in()) : ?>
         <?php $currentRole = current_user_role(); ?>
+        <?php $userDepartment = null; ?>
+        <?php if (in_array($currentRole, ['staff', 'department_manager'], true)) : ?>
+            <?php $userDepartmentId = department_current_user_department_id($user); ?>
+            <?php $userDepartment = $userDepartmentId ? department_fetch_department_by_id($userDepartmentId) : null; ?>
+        <?php endif; ?>
         <nav class="navbar navbar-expand-lg navbar-light app-topbar">
             <div class="container-fluid">
                 <button class="btn btn-outline-light d-lg-none me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebar" aria-controls="appSidebar">
@@ -87,6 +92,9 @@ $user = current_user();
                     <div class="d-flex align-items-center gap-2">
                         <span><?= e($user['full_name'] ?? '') ?></span>
                         <span class="badge text-bg-light text-uppercase"><?= e($user['role'] ?? '') ?></span>
+                        <?php if (in_array($currentRole, ['staff', 'department_manager'], true)) : ?>
+                            <span class="badge text-bg-light">Department: <?= e((string) ($userDepartment['department_name'] ?? 'Unassigned')) ?></span>
+                        <?php endif; ?>
                             <form action="<?= e(app_url('auth/logout-other.php' . ($currentRole ? '?role=' . urlencode($currentRole) : ''))) ?>" method="POST" class="d-inline ms-2" onsubmit="return confirm('Log out other devices? This will end sessions on other devices. Continue?');">
                             <?= csrf_field() ?>
                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Log out other devices">Log out other devices</button>
