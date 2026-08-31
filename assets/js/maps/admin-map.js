@@ -72,8 +72,16 @@
         async function loadIssues() {
             const source = wrapper.dataset.mapSource;
             const params = getFilters(filtersForm);
+            const role = wrapper.dataset.mapRole || new URLSearchParams(window.location.search).get('role');
             const url = new URL(source, window.location.origin);
-            url.search = params.toString();
+
+            if (role) {
+                url.searchParams.set('role', role);
+            }
+
+            for (const [key, value] of params.entries()) {
+                url.searchParams.set(key, value);
+            }
 
             updateStatus('Loading issue locations...');
 

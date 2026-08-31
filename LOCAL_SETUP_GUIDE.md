@@ -264,6 +264,11 @@ This guide will help you set up and run the Smart Civic Platform on your local l
 - Solution: Ensure staff members have the correct department_id
 - Check that department manager and staff belong to same department
 
+**Issue: "Could not load map data" or map page fails to display markers**
+- Solution: Ensure the user is logged in with the correct role and refresh the page after login
+- The app now passes the active role to the shared `issues/map-data.php` endpoint so citizen, staff, department manager, and admin map views can all load correctly
+- If the issue persists, confirm the browser requests `/issues/map-data.php?role=<role>` and the session namespace matches the user role
+
 ### Enable Error Reporting (for debugging)
 
 1. **Open php.ini**

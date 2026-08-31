@@ -117,6 +117,17 @@ The Smart Civic Platform has four distinct user roles, each with specific permis
 | System Settings | ✗ | ✗ | ✗ | ✓ |
 | Audit Logs | ✗ | ✗ | ✗ | ✓ |
 
+### Map Access and Filtering
+
+All authenticated users can access the issue map pages. The map data payload is filtered by the signed-in user role so each user only sees the issues they are allowed to view:
+
+- **Citizen**: their own reported issues only
+- **Staff**: assigned issues and issues they submitted
+- **Department Manager**: issues in their department
+- **Admin**: all mapped issues across the system
+
+This protection is enforced in the shared map data endpoint and the role-aware filters, preventing unauthorized access while keeping the map usable across all roles.
+
 ### Access Levels
 
 - **Citizen**: Can report issues, track their own submissions, and view public statistics
@@ -405,6 +416,9 @@ Monitor your workload through:
 3. Filter by status, priority, or category
 4. Click on markers to view issue details
 5. Use heatmap view to identify problem areas
+6. The map is role-aware and automatically shows only the records relevant to your account
+
+> If a role-specific map does not load, refresh the page after login and verify the current session is the correct user role. The platform now passes the active role to the shared map-data endpoint to prevent access errors across citizen, staff, department manager, and admin views.
 
 ### Best Practices for Staff
 
@@ -546,6 +560,7 @@ Access department-level analytics:
 3. Filter by status, priority, or category
 4. Use heatmap view to identify problem areas in your jurisdiction
 5. Click on markers to view issue details and assign staff
+6. Department views are scoped to the current manager's department and will only display permitted department records
 
 ### Emergency Management
 

@@ -960,6 +960,12 @@ function issue_fetch_division_breakdown(?int $viewerId = null, ?string $viewerRo
         $conditions[] = '(i.assigned_to = :viewer_assigned_id OR i.user_id = :viewer_reporter_id)';
         $params['viewer_assigned_id'] = $viewerId;
         $params['viewer_reporter_id'] = $viewerId;
+    } elseif ($viewerRole === 'department_manager' && $viewerId !== null && issue_issue_column_exists('department_id') && function_exists('department_current_user_department_id')) {
+        $departmentId = department_current_user_department_id(['id' => $viewerId]);
+        if ($departmentId !== null) {
+            $conditions[] = 'i.department_id = :viewer_department_id';
+            $params['viewer_department_id'] = $departmentId;
+        }
     } elseif ($viewerRole === 'citizen' && $viewerId !== null) {
         $conditions[] = 'i.user_id = :viewer_id';
         $params['viewer_id'] = $viewerId;

@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/bootstrap.php';
-require_role(['staff', 'department_manager', 'admin']);
+require_login();
 
 header('Content-Type: application/json; charset=utf-8');
 

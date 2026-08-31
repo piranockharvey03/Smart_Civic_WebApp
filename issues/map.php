@@ -113,7 +113,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     <div class="small text-muted" data-map-status>Loading issue locations...</div>
                 </div>
 
-                <div class="map-canvas map-canvas--dashboard" id="adminIssueMap" data-map-source="<?= e(app_url('issues/map-data.php')) ?>" data-map-filters="issueMapFilters"></div>
+                <div class="map-canvas map-canvas--dashboard" id="adminIssueMap" data-map-source="<?= e(app_url('issues/map-data.php?role=' . urlencode((string) $role))) ?>" data-map-role="<?= e((string) $role) ?>" data-map-filters="issueMapFilters"></div>
             </div>
         </div>
 
